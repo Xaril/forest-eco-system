@@ -40,7 +40,7 @@ class Ecosystem():
                     tree = Tree(self, x, y)
                     self.plant_map[x][y] = tree
                 elif random.random() <= GRASS_INIT_PERCENTAGE:
-                    grass = Grass(self, x, y, random.randint(1,101), False)
+                    grass = Grass(self, x, y, random.randint(-80,101))
                     self.plant_map[x][y] = grass
                 else:
                     earth = Earth(self, x, y)
@@ -53,7 +53,7 @@ class Ecosystem():
                 if random.random() <= FLOWER_PERCENTAGE:
                     if self.plant_map[x][y] and self.plant_map[x][y].type == Type.TREE:
                         continue
-                    flower = Flower(self, x, y, False)
+                    flower = Flower(self, x, y, random.randint(-50,101))
                     self.flower_map[x][y] = flower
 
     def get_organisms_from_maps(self):

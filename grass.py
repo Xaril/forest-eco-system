@@ -10,10 +10,14 @@ REPRODUCTION_COOLDOWN = 24 # Reproduces only once a day
 
 class Grass(organisms.Organism):
     """Defines the grass."""
-    def __init__(self, ecosystem, x, y, amount, seed):
+    def __init__(self, ecosystem, x, y, amount, seed=None):
         super().__init__(ecosystem, organisms.Type.GRASS, x, y)
         self._amount = amount
-        self._seed = seed
+        if seed:
+            self._seed = seed
+        else:
+            self._seed = amount <= 0
+
         self._hours_since_last_reproduction = random.randint(0,25)
 
     def get_image(self):
