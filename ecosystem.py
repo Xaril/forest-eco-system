@@ -40,7 +40,7 @@ class Ecosystem():
                     tree = Tree(self, x, y)
                     self.plant_map[x][y] = tree
                 elif random.random() <= GRASS_INIT_PERCENTAGE:
-                    grass = Grass(self, x, y, random.randint(1,101))
+                    grass = Grass(self, x, y, random.randint(1,101), False)
                     self.plant_map[x][y] = grass
                 else:
                     earth = Earth(self, x, y)
