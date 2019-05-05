@@ -10,10 +10,10 @@ REPRODUCTION_COOLDOWN = 24 # Reproduces only once a day
 
 class Grass(organisms.Organism):
     """Defines the grass."""
-    def __init__(self, ecosystem, x, y, amount, seed_planted):
+    def __init__(self, ecosystem, x, y, amount, seed):
         super().__init__(ecosystem, organisms.Type.GRASS, x, y)
         self._amount = amount
-        self._seed_planted = seed_planted
+        self._seed = seed
         self._hours_since_last_reproduction = random.randint(0,25)
 
     def get_image(self):
@@ -46,7 +46,7 @@ class Grass(organisms.Organism):
             self.__outer = outer
 
         def condition(self):
-            return self.__outer._amount > 0 or self.__outer._seed_planted
+            return self.__outer._amount > 0 or self.__outer._seed
 
     class Die(bt.Action):
         """Performs action after grass dies."""
@@ -72,7 +72,7 @@ class Grass(organisms.Organism):
         def action(self):
             self.__outer._amount = min(100, self.__outer._amount + GROWTH_SPEED)
             if self.__outer._amount > 0:
-                self.__outer._seed_planted = False
+                self.__outer._seed = False
             self._status = bt.Status.SUCCESS
 
 
