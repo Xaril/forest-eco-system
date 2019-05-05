@@ -10,7 +10,7 @@ class Game(arcade.Window):
     """ Main application class. """
 
     def __init__(self, width, height):
-        super().__init__(width, height)
+        super().__init__(width, height, 'Ecosystem Simulation')
 
         self.sprite_list = None
 

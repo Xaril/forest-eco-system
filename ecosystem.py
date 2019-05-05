@@ -47,9 +47,12 @@ class Ecosystem():
                     self.plant_map[x][y] = earth
 
         # Flower map
+        from organisms import Type
         for x in range(self.width):
             for y in range(self.height):
                 if random.random() <= FLOWER_PERCENTAGE:
+                    if self.plant_map[x][y] and self.plant_map[x][y].type == Type.TREE:
+                        continue
                     flower = Flower(self, x, y, False)
                     self.flower_map[x][y] = flower
 
