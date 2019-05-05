@@ -35,7 +35,7 @@ class Game(arcade.Window):
 
         ecosystem_organisms = self.ecosystem.run()
         for organism in ecosystem_organisms:
-            sprite = arcade.Sprite(organism.image, 1)
+            sprite = arcade.Sprite(organism.get_image(), 1)
             sprite.center_x = organism.x * CELL_WIDTH + CELL_WIDTH/2
             sprite.center_y = organism.y * CELL_HEIGHT + CELL_HEIGHT/2
             self.sprite_list.append(sprite)

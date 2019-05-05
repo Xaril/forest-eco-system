@@ -1,7 +1,10 @@
 import random
 from tree import Tree
+from grass import Grass
+from earth import Earth
 
 TREE_PERCENTAGE = 0.1
+GRASS_INIT_PERCENTAGE = 0.2
 
 class Ecosystem():
     """Defines an ecosystem, which starts out as a map of a forest/field with
@@ -30,6 +33,14 @@ class Ecosystem():
                     tree = Tree(self, x, y)
                     self.organisms.append(tree)
                     self.map[x][y] = tree
+                elif random.random() <= GRASS_INIT_PERCENTAGE:
+                    grass = Grass(self, x, y, random.randint(1,101))
+                    self.organisms.append(grass)
+                    self.map[x][y] = grass
+                else:
+                    earth = Earth(self, x, y)
+                    self.organisms.append(earth)
+                    self.map[x][y] = earth
 
     def run(self):
         """Run the behaviour of all organisms for one time step."""

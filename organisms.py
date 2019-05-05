@@ -5,17 +5,18 @@ import behaviour_tree as bt
 
 class Type(Enum):
     """The different types of organisms in the ecosystem."""
-    TREE = 0
+    EARTH = 0
+    TREE = 1
+    GRASS = 2
 
 
 class Organism(ABC):
     """An abstract class container for organisms. Contains the tree for the
     organism. Subclasses must implement a tree generation function.
     """
-    def __init__(self, ecosystem, type, image, x, y):
+    def __init__(self, ecosystem, type, x, y):
         self._ecosystem = ecosystem
         self.type = type
-        self.image = image
         self.x = x
         self.y = y
 
@@ -23,6 +24,10 @@ class Organism(ABC):
 
     @abstractmethod
     def generate_tree(self):
+        pass
+
+    @abstractmethod
+    def get_image(self):
         pass
 
     def run(self):

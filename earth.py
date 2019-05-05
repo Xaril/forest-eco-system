@@ -1,13 +1,13 @@
 import organisms
 import behaviour_tree as bt
 
-class Tree(organisms.Organism):
-    """Defines the tree, which is just an immovable object."""
+class Earth(organisms.Organism):
+    """Defines the earth."""
     def __init__(self, ecosystem, x, y):
-        super().__init__(ecosystem, organisms.Type.TREE, x, y)
+        super().__init__(ecosystem, organisms.Type.EARTH, x, y)
 
     def get_image(self):
-        return 'images/tree.png'
+        return 'images/earth.png'
 
     def generate_tree(self):
         """Generates the tree for the tree."""
