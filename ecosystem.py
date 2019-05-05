@@ -14,37 +14,44 @@ class Ecosystem():
         self.height = height
 
         # Initialize ecosystem map
-        self.map = []
+        self.plant_map = []
         for x in range(self.width):
-            self.map.append([])
+            self.plant_map.append([])
             for y in range(self.height):
-                self.map[x].append(None)
+                self.plant_map[x].append(None)
+
 
         self.organisms = []
 
-        # Add immovable trees to the map
-        self.add_trees()
+        # Add initial organisms
+        self.init_forest()
 
-    def add_trees(self):
-        """Adds trees to the map."""
+    def init_forest(self):
+        """Adds initial organisms to the map."""
         for x in range(self.width):
             for y in range(self.height):
                 if random.random() <= TREE_PERCENTAGE:
                     tree = Tree(self, x, y)
                     self.organisms.append(tree)
-                    self.map[x][y] = tree
+                    self.plant_map[x][y] = tree
                 elif random.random() <= GRASS_INIT_PERCENTAGE:
                     grass = Grass(self, x, y, random.randint(1,101))
                     self.organisms.append(grass)
-                    self.map[x][y] = grass
+                    self.plant_map[x][y] = grass
                 else:
                     earth = Earth(self, x, y)
                     self.organisms.append(earth)
-                    self.map[x][y] = earth
+                    self.plant_map[x][y] = earth
+
+    def remove_dead_organisms(self):
+        self.organisms = [organism for organism in self.organisms if not organism.dead]
+
 
     def run(self):
         """Run the behaviour of all organisms for one time step."""
         for organism in self.organisms:
             organism.run()
+
+        self.remove_dead_organisms()
 
         return self.organisms
