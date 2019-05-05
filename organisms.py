@@ -8,6 +8,7 @@ class Type(Enum):
     EARTH = 0
     TREE = 1
     GRASS = 2
+    FLOWER = 3
 
 
 class Organism(ABC):
