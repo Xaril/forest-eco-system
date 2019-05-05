@@ -6,9 +6,10 @@ import behaviour_tree as bt
 class Type(Enum):
     """The different types of organisms in the ecosystem."""
     EARTH = 0
-    TREE = 1
-    GRASS = 2
-    FLOWER = 3
+    WATER = 1
+    TREE = 2
+    GRASS = 3
+    FLOWER = 4
 
 
 class Organism(ABC):
