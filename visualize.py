@@ -1,6 +1,5 @@
 import arcade
-import random
-import ecosystem
+from ecosystem import Ecosystem
 
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 800
@@ -15,10 +14,14 @@ class Game(arcade.Window):
 
         self.sprite_list = None
 
+        self.ecosystem = None
+
         arcade.set_background_color(arcade.color.BLACK)
 
     def setup(self):
         self.sprite_list = arcade.SpriteList()
+
+        self.ecosystem = Ecosystem(int(SCREEN_WIDTH/CELL_WIDTH), int(SCREEN_HEIGHT/CELL_HEIGHT))
 
     def on_draw(self):
         """ Render the screen. """
@@ -30,9 +33,12 @@ class Game(arcade.Window):
         """ All the logic to move, and the game logic goes here. """
         self.sprite_list = arcade.SpriteList()
 
-        #TODO: Apply ecosystem to visualization
-        #ecosystem_state = ecosystem.run()
-        #for cell in ecosystem...
+        ecosystem_organisms = self.ecosystem.run()
+        for organism in ecosystem_organisms:
+            sprite = arcade.Sprite(organism.image, 1)
+            sprite.center_x = organism.x * CELL_WIDTH + CELL_WIDTH/2
+            sprite.center_y = organism.y * CELL_HEIGHT + CELL_HEIGHT/2
+            self.sprite_list.append(sprite)
 
 
 def main():
