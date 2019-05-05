@@ -1,17 +1,19 @@
 import organisms
 from water import Water
 import behaviour_tree as bt
+import random
 
 EARTH_WATER_CAPACITY = 1000
-EARTH_FLOOD_MULTIPLIER = 1.5
 
 class Earth(organisms.Organism):
     """Defines the earth."""
-    def __init__(self, ecosystem, x, y, water_amount=EARTH_WATER_CAPACITY):
+    def __init__(self, ecosystem, x, y, water_amount=None):
         super().__init__(ecosystem, organisms.Type.EARTH, x, y)
         self._water_capacity = EARTH_WATER_CAPACITY
-        self._water_amount = water_amount
-
+        if water_amount:
+            self.water_amount = water_amount
+        else:
+            self.water_amount = random.randint(0, EARTH_WATER_CAPACITY)
     def get_image(self):
         return 'images/earth.png'
 
@@ -33,7 +35,7 @@ class Earth(organisms.Organism):
             self.__outer = outer
 
         def condition(self):
-            return self.__outer._water_amount < self.__outer._water_capacity * EARTH_FLOOD_MULTIPLIER
+            return self.__outer.water_amount <= self.__outer._water_capacity
 
     class Flood(bt.Action):
         """Flood the earth."""
@@ -44,7 +46,8 @@ class Earth(organisms.Organism):
         def action(self):
             x = self.__outer.x
             y = self.__outer.y
-            water = Water(self.__outer._ecosystem, x, y)
+            water_over = self.__outer.water_amount - self.__outer._water_capacity
+            water = Water(self.__outer._ecosystem, x, y, water_over)
             self.__outer._ecosystem.water_map[x][y] = water
             self.__outer._ecosystem.plant_map[x][y] = None
             self.__outer._ecosystem.flower_map[x][y] = None

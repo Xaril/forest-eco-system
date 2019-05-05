@@ -64,7 +64,7 @@ class Ecosystem():
             rand_y = random.randint(0, self.height - 1)
             water_pools_added = 0
             positions = [(rand_x,rand_y)]
-            while water_pools_added < pool_size or not positions:
+            while water_pools_added < pool_size and positions:
                 # Breadth first add water pools around
                 x, y = positions.pop(0)
                 if not self.water_map[x][y]:
