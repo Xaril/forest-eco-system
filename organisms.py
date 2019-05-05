@@ -21,7 +21,6 @@ class Organism(ABC):
         self.type = type
         self.x = x
         self.y = y
-        self.dead = False
 
         self._tree = self.generate_tree()
 

@@ -1,22 +1,28 @@
 import organisms
 import random
 from earth import Earth
+from water import Water
 import behaviour_tree as bt
 
 REPRODUCTION_THRESHOLD = 60
 GROWTH_SPEED = 0.3 # Based on that grass takes two weeks to grow
 PLANTED_SEED_AMOUNT = -80 # With growth speed of 0.3 this will make SEED-GRASS transition take approx 10 days
 REPRODUCTION_COOLDOWN = 24 # Reproduces only once a day
+GRASS_WATER_CAPACITY = 1000
+GRASS_FLOOD_MULTIPLIER = 1.5
 
 class Grass(organisms.Organism):
     """Defines the grass."""
-    def __init__(self, ecosystem, x, y, amount, seed=None):
+    def __init__(self, ecosystem, x, y, amount, seed=None, water_amount=GRASS_WATER_CAPACITY):
         super().__init__(ecosystem, organisms.Type.GRASS, x, y)
         self._amount = amount
         if seed:
             self._seed = seed
         else:
             self._seed = amount <= 0
+
+        self._water_capacity = GRASS_WATER_CAPACITY
+        self._water_amount = water_amount
 
         self._hours_since_last_reproduction = random.randint(0,25)
 
@@ -34,11 +40,16 @@ class Grass(organisms.Organism):
         dead_or_alive_fallback.add_child(self.IsAlive(self))
         dead_or_alive_fallback.add_child(self.Die(self))
 
+        flood_fallback = bt.FallBack()
+        flood_fallback.add_child(self.IsNotFlooded(self))
+        flood_fallback.add_child(self.Flood(self))
+
         reproduce_sequence = bt.Sequence()
         reproduce_sequence.add_child(self.CanReproduce(self))
         reproduce_sequence.add_child(self.Reproduce(self))
 
         tree.add_child(dead_or_alive_fallback)
+        tree.add_child(flood_fallback)
         tree.add_child(self.Grow(self))
         tree.add_child(reproduce_sequence)
         return tree
@@ -63,7 +74,31 @@ class Grass(organisms.Organism):
             y = self.__outer.y
             earth = Earth(self.__outer._ecosystem, x, y)
             self.__outer._ecosystem.plant_map[x][y] = earth
-            self.__outer.dead = True
+            self._status = bt.Status.FAIL
+
+
+    class IsNotFlooded(bt.Condition):
+        """Check if grass is flooded."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer._water_amount < self.__outer._water_capacity * GRASS_FLOOD_MULTIPLIER
+
+    class Flood(bt.Action):
+        """Flood the grass."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            water = Water(self.__outer._ecosystem, x, y)
+            self.__outer._ecosystem.water_map[x][y] = water
+            self.__outer._ecosystem.plant_map[x][y] = None
+            self.__outer._ecosystem.flower_map[x][y] = None
             self._status = bt.Status.FAIL
 
 

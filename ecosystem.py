@@ -139,8 +139,6 @@ class Ecosystem():
 
         return organisms
 
-    def remove_dead_organisms(self, organisms):
-        organisms = [organism for organism in organisms if not organism.dead]
 
     def run(self):
         """Run the behaviour of all organisms for one time step."""
@@ -148,7 +146,5 @@ class Ecosystem():
 
         for organism in organisms:
             organism.run()
-
-        self.remove_dead_organisms(organisms)
 
         return organisms
