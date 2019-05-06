@@ -180,4 +180,6 @@ class Ecosystem():
         for organism in organisms:
             organism.run()
 
+        organisms = self.get_organisms_from_maps()
+
         return organisms

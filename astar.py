@@ -24,7 +24,7 @@ class Node():
         return ((self.x == other.x) and (self.y == other.y))
 
 
-def astar(traverser, plant_map, animal_map, start_x, start_y, end_x, end_y, max_path_length=math.inf):
+def astar(traverser, water_map, plant_map, animal_map, start_x, start_y, end_x, end_y, max_path_length=math.inf):
     """Returns a list of tuples as a path from the given start to the given end in the given maze"""
     # Create start and end node
     start_node = Node(None, start_x, start_y)
@@ -77,7 +77,7 @@ def astar(traverser, plant_map, animal_map, start_x, start_y, end_x, end_y, max_
                 continue
 
             # Make sure walkable terrain
-            if plant_map[node_position_x][node_position_y] and plant_map[node_position_x][node_position_y].type == organisms.Type.WATER:
+            if water_map[node_position_x][node_position_y]:
                 continue
             elif plant_map[node_position_x][node_position_y] and plant_map[node_position_x][node_position_y].type == organisms.Type.TREE:
                 occupied_space = 50
