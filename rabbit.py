@@ -4,8 +4,8 @@ import behaviour_tree as bt
 HUNGER_SEEK_THRESHOLD = 50
 THIRST_SEEK_THRESHOLD = 50
 TIRED_SEEK_THRESHOLD = 50
-HUNGER_DAMAGE_THRESHOLD = 90
-THIRST_DAMAGE_THRESHOLD = 75
+HUNGER_DAMAGE_THRESHOLD = 75
+THIRST_DAMAGE_THRESHOLD = 85
 TIRED_DAMAGE_THRESHOLD = 80
 
 REPRODUCTION_TIME = 24*30 # Rabbits are pregnant for 30 days
@@ -17,7 +17,7 @@ class Rabbit(organisms.Organism):
     def __init__(self, ecosystem, x, y, female, adult=False, hunger=50,
                  thirst=0, tired=0, health=100, size=20, life_span=24*365*7,
                  hunger_speed=50/12, thirst_speed=50/24, tired_speed=50/12,
-                 burrow=None):
+                 vision_range=50, burrow=None, in_burrow=False):
         super().__init__(ecosystem, organisms.Type.RABBIT, x, y)
         self._female = female
         self._adult = adult
@@ -31,12 +31,18 @@ class Rabbit(organisms.Organism):
         self._hunger_speed = hunger_speed
         self._thirst_speed = thirst_speed
         self._tired_speed = tired_speed
+        self._vision_range = vision_range
+
+        # TODO:
+        #     * Genetic variables
+        #     * Pooping
 
         self._can_reproduce = self._adult
         self._pregnant = False
         self._partner = None
 
         self._burrow = burrow
+        self._in_burrow = False
 
 
     def get_image(self):

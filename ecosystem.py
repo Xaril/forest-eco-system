@@ -123,7 +123,7 @@ class Ecosystem():
                 if self.water_map[x][y]:
                     continue
                 if random.random() <= RABBIT_PERCENTAGE:
-                    rabbit = Rabbit(self, x, y, adult=True)
+                    rabbit = Rabbit(self, x, y, random.choice([True, False]), adult=True)
                     self.animal_map[x][y].append(rabbit)
 
     def get_organisms_from_maps(self):
