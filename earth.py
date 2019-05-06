@@ -9,7 +9,7 @@ class Earth(organisms.Organism):
     """Defines the earth."""
     def __init__(self, ecosystem, x, y, water_amount=None):
         super().__init__(ecosystem, organisms.Type.EARTH, x, y)
-        self._water_capacity = EARTH_WATER_CAPACITY
+        self.water_capacity = EARTH_WATER_CAPACITY
         if water_amount:
             self.water_amount = water_amount
         else:
@@ -35,7 +35,7 @@ class Earth(organisms.Organism):
             self.__outer = outer
 
         def condition(self):
-            return self.__outer.water_amount <= self.__outer._water_capacity
+            return self.__outer.water_amount <= self.__outer.water_capacity
 
     class Flood(bt.Action):
         """Flood the earth."""
@@ -46,7 +46,7 @@ class Earth(organisms.Organism):
         def action(self):
             x = self.__outer.x
             y = self.__outer.y
-            water_over = self.__outer.water_amount - self.__outer._water_capacity
+            water_over = self.__outer.water_amount - self.__outer.water_capacity
             water = Water(self.__outer._ecosystem, x, y, water_over)
             self.__outer._ecosystem.water_map[x][y] = water
             self.__outer._ecosystem.plant_map[x][y] = None

@@ -7,7 +7,7 @@ from flower import Flower
 from water import Water
 
 TREE_PERCENTAGE = 0.1
-GRASS_INIT_PERCENTAGE = 0.2
+GRASS_INIT_PERCENTAGE = 0
 FLOWER_PERCENTAGE = 0.03
 WATER_POOLS = [20, 10, 5, 5, 5, 3, 1]
 

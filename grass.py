@@ -6,9 +6,10 @@ import behaviour_tree as bt
 from helpers import Lerp, InverseLerp
 
 REPRODUCTION_THRESHOLD = 60
+MAX_GRASS_AMOUNT = 100
 MAX_GROWTH_SPEED = 0.3 # Based on that grass takes two weeks to grow
 MIN_GROWTH_SPEED = 0.2
-MAX_DEGRADE_SPEED = - 0.2
+MAX_DEGRADE_SPEED = -0.2
 PLANTED_SEED_AMOUNT = -80 # With growth speed of 0.3 this will make SEED-GRASS transition take approx 10 days
 REPRODUCTION_COOLDOWN = 24 # Reproduces only once a day
 GRASS_WATER_CAPACITY = 1000
@@ -127,7 +128,7 @@ class Grass(organisms.Organism):
             else:
                 growth_speed = Lerp(MAX_DEGRADE_SPEED, MIN_GROWTH_SPEED, 1 - InverseLerp(GRASS_MAX_WATER_PERCENTAGE, 1, water_percentage))
 
-            self.__outer._amount = min(100, self.__outer._amount + growth_speed)
+            self.__outer._amount = min(MAX_GRASS_AMOUNT, self.__outer._amount + growth_speed)
             self.__outer._water_amount -= GRASS_WATER_USAGE
             if self.__outer._amount > 0:
                 self.__outer._seed = False

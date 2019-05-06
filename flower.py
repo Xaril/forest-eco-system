@@ -1,11 +1,16 @@
 import organisms
 import behaviour_tree as bt
-
+from helpers import Lerp, InverseLerp
 
 REPRODUCTION_THRESHOLD = 60 # Amout of flower needed to be able to reproduce
-GROWTH_SPEED = 0.1 # Based on that grass takes around five weeks to grow
-PLANTED_SEED_AMOUNT = -50 # With growth speed of 0.1 this will make SEED-GRASS transition take approx 3 weeks
+MAX_GROWTH_SPEED = 0.15 # Based on that FLOWER takes around five weeks to grow
+MIN_GROWTH_SPEED = 0.5
+PLANTED_SEED_AMOUNT = -50 # With growth speed of 0.1 this will make SEED-FLOWER transition take approx 3 weeks
 MAX_FLOWER_AMOUNT = 100
+FLOWER_WATER_USAGE = 0.2
+FLOWER_OPTIMAL_WATER_PERCENTAGE = 0.5 # Water percentage for fastest growth speed
+FLOWER_MAX_WATER_PERCENTAGE = 0.8 # Threshold when too much water starts to kill FLOWER
+MAX_DEGRADE_SPEED = -0.1
 
 class Flower(organisms.Organism):
     """Defines the flower."""
@@ -46,13 +51,15 @@ class Flower(organisms.Organism):
             return self.__outer._amount > 0 or self.__outer._seed
 
     class Die(bt.Action):
-        """Performs action after grass dies."""
+        """Performs action after flower dies."""
         def __init__(self, outer):
             super().__init__()
             self.__outer = outer
 
         def action(self):
-            self.__outer.dead = True
+            x = self.__outer.x
+            y = self.__outer.y
+            self.__outer._ecosystem.flower_map[x][y] = None
             self._status = bt.Status.FAIL
 
 
@@ -63,7 +70,24 @@ class Flower(organisms.Organism):
             self.__outer = outer
 
         def action(self):
-            self.__outer._amount = min(MAX_FLOWER_AMOUNT, self.__outer._amount + GROWTH_SPEED)
+            x = self.__outer.x
+            y = self.__outer.y
+            # get water info from groud organism (earth or grass)
+            water_amount = self.__outer._ecosystem.plant_map[x][y].water_amount
+            water_capacity = self.__outer._ecosystem.plant_map[x][y].water_capacity
+            water_percentage = water_amount / water_capacity
+            if water_percentage <= 0:
+                growth_speed = MAX_DEGRADE_SPEED
+            elif water_percentage <= FLOWER_OPTIMAL_WATER_PERCENTAGE:
+                growth_speed = Lerp(MIN_GROWTH_SPEED, MAX_GROWTH_SPEED, InverseLerp(0, FLOWER_OPTIMAL_WATER_PERCENTAGE, water_percentage))
+            elif water_percentage <= FLOWER_MAX_WATER_PERCENTAGE:
+                growth_speed = Lerp(MIN_GROWTH_SPEED, MAX_GROWTH_SPEED, 1 - InverseLerp(FLOWER_OPTIMAL_WATER_PERCENTAGE,FLOWER_MAX_WATER_PERCENTAGE, water_percentage))
+            else:
+                growth_speed = Lerp(MAX_DEGRADE_SPEED, MIN_GROWTH_SPEED, 1 - InverseLerp(FLOWER_MAX_WATER_PERCENTAGE, 1, water_percentage))
+
+
+            self.__outer._amount = min(MAX_FLOWER_AMOUNT, self.__outer._amount + growth_speed)
+            self.__outer._ecosystem.plant_map[x][y].water_amount -= FLOWER_WATER_USAGE
             if self.__outer._amount > 0:
                 self.__outer._seed = False
             self._status = bt.Status.SUCCESS
