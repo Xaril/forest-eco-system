@@ -67,7 +67,7 @@ class Water(organisms.Organism):
             total_water_amount = 0
 
             spilling_over = self.__outer.water_amount > self.__outer.water_capacity
-
+            min_water_cell = self.__outer
             for dir in directions:
                 x = self.__outer.x + dir.value[0]
                 y = self.__outer.y + dir.value[1]
@@ -81,6 +81,8 @@ class Water(organisms.Organism):
                     cell = self.__outer._ecosystem.water_map[x][y]
                 if cell and cell.type != organisms.Type.TREE:
                     cells_to_add_water.append(cell)
+                    if cell.water_amount < min_water_cell.water_amount:
+                        min_water_cell = cell
 
 
             if spilling_over:
@@ -95,6 +97,18 @@ class Water(organisms.Organism):
 
                     self.__outer.water_amount -= water_moved
                     cell.water_amount += water_moved
+            else:
+                water_diff = (self.__outer.water_amount - min_water_cell.water_amount) / 2
+                if min_water_cell.type == organisms.Type.EARTH:
+                    moved_water = min(water_diff  * constants.WATER_TO_EARTH_WATER_MOVE_SPEED, (min_water_cell.water_capacity - min_water_cell.water_amount) * 0.1)
+                elif min_water_cell.type == organisms.Type.GRASS:
+                    moved_water = min(water_diff  * constants.WATER_TO_GRASS_WATER_MOVE_SPEED, (min_water_cell.water_capacity - min_water_cell.water_amount) * 0.1)
+                else:
+                    moved_water = water_diff
+
+                self.__outer.water_amount -= moved_water
+                min_water_cell.water_amount += moved_water
+
 
 
             self._status = bt.Status.SUCCESS

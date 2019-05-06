@@ -81,11 +81,11 @@ class Earth(organisms.Organism):
                     min_water_cell = cell
 
 
-                water_diff = (self.__outer.water_amount - min_water_cell.water_amount) / 2
-                if min_water_cell.type == organisms.Type.EARTH:
-                    moved_water = water_diff  * constants.EARTH_TO_EARTH_WATER_MOVE_SPEED
-                elif min_water_cell.type == organisms.Type.GRASS:
-                    moved_water = water_diff  * constants.EARTH_TO_GRASS_WATER_MOVE_SPEED
+            water_diff = (self.__outer.water_amount - min_water_cell.water_amount) / 2
+            if min_water_cell.type == organisms.Type.EARTH:
+                moved_water = water_diff  * constants.EARTH_TO_EARTH_WATER_MOVE_SPEED
+            elif min_water_cell.type == organisms.Type.GRASS:
+                moved_water = water_diff  * constants.EARTH_TO_GRASS_WATER_MOVE_SPEED
 
-                self.__outer.water_amount -= moved_water
-                cell.water_amount += moved_water
+            self.__outer.water_amount -= moved_water
+            min_water_cell.water_amount += moved_water
