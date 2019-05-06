@@ -12,4 +12,5 @@ class Weather():
 
     def simulate_weather(self):
         """Simulates weather changes and effects in one time step"""
+        self.__wind_velocity = (random.choice(list(Direction)), 1)
         return

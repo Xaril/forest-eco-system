@@ -5,12 +5,13 @@ from earth import Earth
 from flower import Flower
 from water import Water
 from weather import Weather
-from helpers import Direction
+from helpers import Direction, EuclidianDistance, InverseLerp
 
 TREE_PERCENTAGE = 0.1
 GRASS_INIT_PERCENTAGE = 0.2
-FLOWER_PERCENTAGE = 0.03
-WATER_POOLS = [20, 10, 5, 5, 5, 3, 1]
+FLOWER_PERCENTAGE = 0
+WATER_POOLS = [20, 10, 5, 3, 2]
+WATER_POOLS_POSITIONS = []
 
 
 class Ecosystem():
@@ -54,8 +55,12 @@ class Ecosystem():
         for pool_size in WATER_POOLS:
             rand_x = random.randint(0, self.width - 1)
             rand_y = random.randint(0, self.height - 1)
+            while self.water_map[rand_x][rand_y]:
+                rand_x = random.randint(0, self.width - 1)
+                rand_y = random.randint(0, self.height - 1)
             water_pools_added = 0
             positions = [(rand_x,rand_y)]
+            WATER_POOLS_POSITIONS.append((rand_x,rand_y))
             while water_pools_added < pool_size and positions:
                 # Breadth first add water pools around
                 x, y = positions.pop(0)
@@ -87,10 +92,10 @@ class Ecosystem():
                     tree = Tree(self, x, y)
                     self.plant_map[x][y] = tree
                 elif random.random() <= GRASS_INIT_PERCENTAGE:
-                    grass = Grass(self, x, y, random.randint(-80, 101))
+                    grass = Grass(self, x, y, random.randint(-80, 101), None, self.get_initial_water_level(x,y))
                     self.plant_map[x][y] = grass
                 else:
-                    earth = Earth(self, x, y)
+                    earth = Earth(self, x, y, self.get_initial_water_level(x,y))
                     self.plant_map[x][y] = earth
 
         # Flower map
@@ -130,6 +135,20 @@ class Ecosystem():
         # Animal map
 
         return organisms
+
+
+    def get_initial_water_level(self, x, y):
+        """Calulate initial water level on earth and grass depending on the proximity to water supplies"""
+        max_possible_distance = EuclidianDistance(0, 0, self.width - 1, self.height - 1)
+        closest_lake_distance = EuclidianDistance(x, y, WATER_POOLS_POSITIONS[0][0], WATER_POOLS_POSITIONS[0][1])
+        min_distance_lake_index = 0
+        for (index, lake_position) in enumerate(WATER_POOLS_POSITIONS):
+            distace = EuclidianDistance(x, y , lake_position[0], lake_position[1])
+            if distace < closest_lake_distance:
+                closest_lake_distance = distace
+                min_distance_lake_index = index
+
+        return 200 * (1 - InverseLerp(0, max_possible_distance, closest_lake_distance))
 
 
     def run(self):

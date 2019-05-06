@@ -22,15 +22,15 @@ class Grass(organisms.Organism):
     def __init__(self, ecosystem, x, y, amount, seed=None, water_amount=None):
         super().__init__(ecosystem, organisms.Type.GRASS, x, y)
         self._amount = amount
-        if seed:
+        if seed is not None:
             self._seed = seed
         else:
             self._seed = amount <= 0
 
-        if water_amount:
+        if water_amount is not None:
             self.water_amount = water_amount
-        else:
-            self.water_amount = random.randint(0, GRASS_WATER_CAPACITY)
+        #else:
+            #elf.water_amount = random.randint(0, GRASS_WATER_CAPACITY)
         self.water_capacity = GRASS_WATER_CAPACITY
         self._hours_since_last_reproduction = random.randint(0,25)
 
@@ -128,8 +128,9 @@ class Grass(organisms.Organism):
             else:
                 growth_speed = Lerp(MAX_DEGRADE_SPEED, MIN_GROWTH_SPEED, 1 - InverseLerp(GRASS_MAX_WATER_PERCENTAGE, 1, water_percentage))
 
+
             self.__outer._amount = min(MAX_GRASS_AMOUNT, self.__outer._amount + growth_speed)
-            self.__outer.water_amount -= GRASS_WATER_USAGE
+            self.__outer.water_amount = max(0,self.__outer.water_amount - GRASS_WATER_USAGE )
             if self.__outer._amount > 0:
                 self.__outer._seed = False
             self._status = bt.Status.SUCCESS

@@ -49,3 +49,17 @@ class Water(organisms.Organism):
             self.__outer._ecosystem.water_map[x][y] = None
             self.__outer._ecosystem.plant_map[x][y] = _earth
             self._status = bt.Status.FAIL
+
+    class WaterMovement(bt.Action):
+        """Simulater subterranean water movements"""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            _earth = earth.Earth(self.__outer._ecosystem, x, y)
+            self.__outer._ecosystem.water_map[x][y] = None
+            self.__outer._ecosystem.plant_map[x][y] = _earth
+            self._status = bt.Status.FAIL

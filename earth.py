@@ -10,7 +10,7 @@ class Earth(organisms.Organism):
     def __init__(self, ecosystem, x, y, water_amount=None):
         super().__init__(ecosystem, organisms.Type.EARTH, x, y)
         self.water_capacity = EARTH_WATER_CAPACITY
-        if water_amount:
+        if water_amount is not None:
             self.water_amount = water_amount
         else:
             self.water_amount = random.randint(0, EARTH_WATER_CAPACITY)

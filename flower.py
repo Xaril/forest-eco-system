@@ -48,7 +48,7 @@ class Flower(organisms.Organism):
             self.__outer = outer
 
         def condition(self):
-            return self.__outer._amount > 0 or self.__outer._seed
+            return self.__outer._amount > 0 or (self.__outer._seed and self.__outer._amount >= PLANTED_SEED_AMOUNT )
 
     class Die(bt.Action):
         """Performs action after flower dies."""
@@ -87,7 +87,7 @@ class Flower(organisms.Organism):
 
 
             self.__outer._amount = min(MAX_FLOWER_AMOUNT, self.__outer._amount + growth_speed)
-            self.__outer._ecosystem.plant_map[x][y].water_amount -= FLOWER_WATER_USAGE
+            self.__outer._ecosystem.plant_map[x][y].water_amount = max(0, self.__outer._ecosystem.plant_map[x][y].water_amount - FLOWER_WATER_USAGE)
             if self.__outer._amount > 0:
                 self.__outer._seed = False
             self._status = bt.Status.SUCCESS
