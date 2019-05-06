@@ -1,28 +1,17 @@
 import random
-from enum import Enum
 from tree import Tree
 from grass import Grass
 from earth import Earth
 from flower import Flower
 from water import Water
+from weather import Weather
+from helpers import Direction
 
 TREE_PERCENTAGE = 0.1
-GRASS_INIT_PERCENTAGE = 0.2
+GRASS_INIT_PERCENTAGE = 0.02
 FLOWER_PERCENTAGE = 0.03
 WATER_POOLS = [20, 10, 5, 5, 5, 3, 1]
 
-
-class Direction(Enum):
-    """The different directions."""
-    CENTER = (0, 0)
-    EAST = (1, 0)
-    NORTH = (0, 1)
-    NORTHEAST = (1, 1)
-    NORTHWEST = (-1, 1)
-    SOUTH = (0, -1)
-    SOUTHEAST = (1, -1)
-    SOUTHWEST = (-1, -1)
-    WEST = (-1, 0)
 
 class Ecosystem():
     """Defines an ecosystem, which starts out as a map of a forest/field with
@@ -50,6 +39,9 @@ class Ecosystem():
             self.flower_map.append([])
             for y in range(self.height):
                 self.flower_map[x].append(None)
+
+
+        self.weather = Weather(self)
 
         # Add initial organisms
         self.initialize_forest()
@@ -143,6 +135,8 @@ class Ecosystem():
     def run(self):
         """Run the behaviour of all organisms for one time step."""
         organisms = self.get_organisms_from_maps()
+
+        self.weather.simulate_weather()
 
         for organism in organisms:
             organism.run()

@@ -152,20 +152,23 @@ class Grass(organisms.Organism):
             self.__outer = outer
 
         def action(self):
+
+            # Get wind information
+            wind_direction, wind_speed = self.__outer._ecosystem.weather.get_wind_velocity()
+
+            # Reproduce in direcion of the wind
+            for i in range(wind_speed):
+                x = self.__outer.x + (wind_direction.value[0] * (i + 1))
+                y = self.__outer.y + (wind_direction.value[1] * (i + 1))
+
+                # check if in bounds
+                if x < 0 or x >= self.__outer._ecosystem.width or y < 0 or y >= self.__outer._ecosystem.height:
+                    continue
+                # if cell is empty or earth plant a seed
+                cell = self.__outer._ecosystem.plant_map[x][y]
+                if cell and cell.type == organisms.Type.EARTH and cell.water_amount > 0:
+                    grass = Grass(self.__outer._ecosystem, x, y, PLANTED_SEED_AMOUNT, True, cell.water_amount)
+                    self.__outer._ecosystem.plant_map[x][y] = grass
+                    self.__outer._hours_since_last_reproduction = 0
+
             self._status = bt.Status.SUCCESS
-            # get a random direction
-            rand_x_dir  = random.randint(-2,2)
-            rand_y_dir = random.randint(-2,2)
-
-            x = self.__outer.x + rand_x_dir
-            y = self.__outer.y + rand_y_dir
-
-            # check if in bounds
-            if x < 0 or x >= self.__outer._ecosystem.width or y < 0 or y >= self.__outer._ecosystem.height:
-                return
-            # if cell is empty or earth plant a seed
-            cell = self.__outer._ecosystem.plant_map[x][y]
-            if cell and cell.type == organisms.Type.EARTH and cell.water_amount > 0:
-                grass = Grass(self.__outer._ecosystem, x, y, PLANTED_SEED_AMOUNT, True, cell.water_amount)
-                self.__outer._ecosystem.plant_map[x][y] = grass
-                self.__outer._hours_since_last_reproduction = 0
