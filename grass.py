@@ -3,7 +3,8 @@ import random
 from earth import Earth
 from water import Water
 import behaviour_tree as bt
-from helpers import Lerp, InverseLerp
+from helpers import Lerp, InverseLerp, Direction
+import constants
 
 REPRODUCTION_THRESHOLD = 60
 MAX_GRASS_AMOUNT = 100
@@ -60,6 +61,7 @@ class Grass(organisms.Organism):
         tree.add_child(flood_fallback)
         tree.add_child(self.Grow(self))
         tree.add_child(reproduce_sequence)
+        tree.add_child(self.MoveWater(self))
         return tree
 
     class IsAlive(bt.Condition):
@@ -173,3 +175,37 @@ class Grass(organisms.Organism):
                     self.__outer._hours_since_last_reproduction = 0
 
             self._status = bt.Status.SUCCESS
+
+
+    class MoveWater(bt.Action):
+        """Simulater subterranean water movements"""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            directions = list(Direction)
+            min_water_cell = self.__outer
+            for dir in directions:
+                x = self.__outer.x + dir.value[0]
+                y = self.__outer.y + dir.value[1]
+
+                # check if in bounds
+                if x < 0 or x >= self.__outer._ecosystem.width or y < 0 or y >= self.__outer._ecosystem.height:
+                    continue
+
+                cell = self.__outer._ecosystem.plant_map[x][y]
+                if not cell or cell.type == organisms.Type.TREE:
+                    continue
+                if cell.water_amount < min_water_cell.water_amount:
+                    min_water_cell = cell
+
+
+                water_diff = (self.__outer.water_amount - min_water_cell.water_amount) / 2
+                if min_water_cell.type == organisms.Type.EARTH:
+                    moved_water = water_diff  * constants.GRASS_TO_EARTH_WATER_MOVE_SPEED
+                elif min_water_cell.type == organisms.Type.GRASS:
+                    moved_water = water_diff  * constants.GRASS_TO_GRASS_WATER_MOVE_SPEED
+
+                self.__outer.water_amount -= moved_water
+                cell.water_amount += moved_water

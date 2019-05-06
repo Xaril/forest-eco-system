@@ -9,7 +9,8 @@ from helpers import Direction, EuclidianDistance, InverseLerp
 
 TREE_PERCENTAGE = 0.1
 GRASS_INIT_PERCENTAGE = 0.2
-FLOWER_PERCENTAGE = 0
+FLOWER_PERCENTAGE = 0.02
+INITAL_WATER_MAX_AMOUNT = 100
 WATER_POOLS = [20, 10, 5, 3, 2]
 WATER_POOLS_POSITIONS = []
 
@@ -148,7 +149,7 @@ class Ecosystem():
                 closest_lake_distance = distace
                 min_distance_lake_index = index
 
-        return 200 * (1 - InverseLerp(0, max_possible_distance, closest_lake_distance))
+        return INITAL_WATER_MAX_AMOUNT * (1 - InverseLerp(0, max_possible_distance, closest_lake_distance))
 
 
     def run(self):
