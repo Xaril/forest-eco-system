@@ -28,10 +28,10 @@ class Grass(organisms.Organism):
             self._seed = amount <= 0
 
         if water_amount:
-            self._water_amount = water_amount
+            self.water_amount = water_amount
         else:
-            self._water_amount = random.randint(0, GRASS_WATER_CAPACITY)
-        self._water_capacity = GRASS_WATER_CAPACITY
+            self.water_amount = random.randint(0, GRASS_WATER_CAPACITY)
+        self.water_capacity = GRASS_WATER_CAPACITY
         self._hours_since_last_reproduction = random.randint(0,25)
 
     def get_image(self):
@@ -80,7 +80,7 @@ class Grass(organisms.Organism):
         def action(self):
             x = self.__outer.x
             y = self.__outer.y
-            earth = Earth(self.__outer._ecosystem, x, y, water_amount=self.__outer._water_amount)
+            earth = Earth(self.__outer._ecosystem, x, y, water_amount=self.__outer.water_amount)
             self.__outer._ecosystem.plant_map[x][y] = earth
             self._status = bt.Status.FAIL
 
@@ -92,7 +92,7 @@ class Grass(organisms.Organism):
             self.__outer = outer
 
         def condition(self):
-            return self.__outer._water_amount <= self.__outer._water_capacity
+            return self.__outer.water_amount <= self.__outer.water_capacity
 
     class Flood(bt.Action):
         """Flood the grass."""
@@ -103,7 +103,7 @@ class Grass(organisms.Organism):
         def action(self):
             x = self.__outer.x
             y = self.__outer.y
-            water_over = self.__outer._water_amount - self.__outer._water_capacity
+            water_over = self.__outer.water_amount - self.__outer.water_capacity
             water = Water(self.__outer._ecosystem, x, y, water_over )
             self.__outer._ecosystem.water_map[x][y] = water
             self.__outer._ecosystem.plant_map[x][y] = None
@@ -118,7 +118,7 @@ class Grass(organisms.Organism):
             self.__outer = outer
 
         def action(self):
-            water_percentage = self.__outer._water_amount / self.__outer._water_capacity
+            water_percentage = self.__outer.water_amount / self.__outer.water_capacity
             if water_percentage <= 0:
                 growth_speed = MAX_DEGRADE_SPEED
             elif water_percentage <= GRASS_OPTIMAL_WATER_PERCENTAGE:
@@ -129,7 +129,7 @@ class Grass(organisms.Organism):
                 growth_speed = Lerp(MAX_DEGRADE_SPEED, MIN_GROWTH_SPEED, 1 - InverseLerp(GRASS_MAX_WATER_PERCENTAGE, 1, water_percentage))
 
             self.__outer._amount = min(MAX_GRASS_AMOUNT, self.__outer._amount + growth_speed)
-            self.__outer._water_amount -= GRASS_WATER_USAGE
+            self.__outer.water_amount -= GRASS_WATER_USAGE
             if self.__outer._amount > 0:
                 self.__outer._seed = False
             self._status = bt.Status.SUCCESS
