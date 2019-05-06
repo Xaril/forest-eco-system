@@ -3,6 +3,7 @@ from tree import Tree
 from grass import Grass
 from earth import Earth
 from flower import Flower
+from rabbit import Rabbit
 from water import Water
 from weather import Weather
 from helpers import Direction, EuclidianDistance, InverseLerp
@@ -13,6 +14,8 @@ FLOWER_PERCENTAGE = 0.02
 INITAL_WATER_MAX_AMOUNT = 500
 WATER_POOLS = [20, 10, 5, 3, 2]
 WATER_POOLS_POSITIONS = []
+ANIMAL_CELL_CAPACITY = 100
+RABBIT_PERCENTAGE = 0.01
 
 
 class Ecosystem():
@@ -42,6 +45,11 @@ class Ecosystem():
             for y in range(self.height):
                 self.flower_map[x].append(None)
 
+        self.animal_map = []
+        for x in range(self.width):
+            self.animal_map.append([])
+            for y in range(self.height):
+                self.animal_map[x].append([])
 
         self.weather = Weather(self)
 
@@ -81,8 +89,6 @@ class Ecosystem():
                             continue
                         positions.append((new_x,new_y))
 
-
-
         # Plant map
         for x in range(self.width):
             for y in range(self.height):
@@ -111,6 +117,15 @@ class Ecosystem():
                     flower = Flower(self, x, y, random.randint(-50, 101))
                     self.flower_map[x][y] = flower
 
+        # Animal map
+        for x in range(self.width):
+            for y in range(self.height):
+                if self.water_map[x][y]:
+                    continue
+                if random.random() <= RABBIT_PERCENTAGE:
+                    rabbit = Rabbit(self, x, y, adult=True)
+                    self.animal_map[x][y].append(rabbit)
+
     def get_organisms_from_maps(self):
         """Looks through the maps to find organisms, and returns these in a list."""
         organisms = []
@@ -134,6 +149,10 @@ class Ecosystem():
                     organisms.append(self.flower_map[x][y])
 
         # Animal map
+        for x in range(self.width):
+            for y in range(self.height):
+                for animal in self.animal_map[x][y]:
+                    organisms.append(animal)
 
         return organisms
 

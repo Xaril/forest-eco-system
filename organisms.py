@@ -10,6 +10,7 @@ class Type(Enum):
     TREE = 2
     GRASS = 3
     FLOWER = 4
+    RABBIT = 5
 
 
 class Organism(ABC):
