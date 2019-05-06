@@ -22,7 +22,7 @@ class Grass(organisms.Organism):
     """Defines the grass."""
     def __init__(self, ecosystem, x, y, amount, seed=None, water_amount=None):
         super().__init__(ecosystem, organisms.Type.GRASS, x, y)
-        self._amount = amount
+        self.amount = amount
         if seed is not None:
             self._seed = seed
         else:
@@ -36,9 +36,9 @@ class Grass(organisms.Organism):
         self._hours_since_last_reproduction = random.randint(0,25)
 
     def get_image(self):
-        if self._amount <= 0:
+        if self.amount <= 0:
             return 'images/earth.png'
-        elif self._amount < REPRODUCTION_THRESHOLD:
+        elif self.amount < REPRODUCTION_THRESHOLD:
             return 'images/grassLow.png'
         else:
             return 'images/grassHigh.png'
@@ -73,7 +73,7 @@ class Grass(organisms.Organism):
             self.__outer = outer
 
         def condition(self):
-            return self.__outer._amount > 0 or (self.__outer._seed and self.__outer._amount >= PLANTED_SEED_AMOUNT )
+            return self.__outer.amount > 0 or (self.__outer._seed and self.__outer.amount >= PLANTED_SEED_AMOUNT )
 
     class Die(bt.Action):
         """Performs action after grass dies."""
@@ -133,9 +133,9 @@ class Grass(organisms.Organism):
                 growth_speed = Lerp(MAX_DEGRADE_SPEED, MIN_GROWTH_SPEED, 1 - InverseLerp(GRASS_MAX_WATER_PERCENTAGE, 1, water_percentage))
 
 
-            self.__outer._amount = min(MAX_GRASS_AMOUNT, self.__outer._amount + growth_speed)
+            self.__outer.amount = min(MAX_GRASS_AMOUNT, self.__outer.amount + growth_speed)
             self.__outer.water_amount = max(0,self.__outer.water_amount - GRASS_WATER_USAGE )
-            if self.__outer._amount > 0:
+            if self.__outer.amount > 0:
                 self.__outer._seed = False
             self._status = bt.Status.SUCCESS
 
@@ -148,7 +148,7 @@ class Grass(organisms.Organism):
 
         def condition(self):
             self.__outer._hours_since_last_reproduction += 1
-            return self.__outer._amount >= REPRODUCTION_THRESHOLD and self.__outer._hours_since_last_reproduction >= REPRODUCTION_COOLDOWN
+            return self.__outer.amount >= REPRODUCTION_THRESHOLD and self.__outer._hours_since_last_reproduction >= REPRODUCTION_COOLDOWN
 
     class Reproduce(bt.Action):
         """Reproduce to adjacent cell."""
