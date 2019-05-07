@@ -4,6 +4,7 @@ from grass import Grass
 from earth import Earth
 from flower import Flower
 from rabbit import Rabbit
+from burrow import Burrow
 from water import Water
 from weather import Weather
 from helpers import Direction, EuclidianDistance, InverseLerp
@@ -15,7 +16,9 @@ INITAL_WATER_MAX_AMOUNT = 500
 WATER_POOLS = [20, 10, 5, 3, 2]
 WATER_POOLS_POSITIONS = []
 ANIMAL_CELL_CAPACITY = 100
-RABBIT_PERCENTAGE = 0.01
+BURROW_PERCENTAGE = 0.003
+BURROW_RABBIT_MIN_AMOUNT = 2
+BURROW_RABBIT_MAX_AMOUNT = 5
 
 
 class Ecosystem():
@@ -122,9 +125,25 @@ class Ecosystem():
             for y in range(self.height):
                 if self.water_map[x][y]:
                     continue
-                if random.random() <= RABBIT_PERCENTAGE:
-                    rabbit = Rabbit(self, x, y, random.choice([True, False]), adult=True, age=random.randint(24*365, 24*365*4))
-                    self.animal_map[x][y].append(rabbit)
+                if random.random() <= BURROW_PERCENTAGE:
+                    burrow = Burrow(self, x, y)
+                    self.animal_map[x][y].append(burrow)
+                    rabbit_amount = random.randint(BURROW_RABBIT_MIN_AMOUNT, BURROW_RABBIT_MAX_AMOUNT+1)
+                    for _ in range(rabbit_amount):
+                        dx = random.randint(-3, 4)
+                        dy = random.randint(-3, 4)
+
+                        if x + dx < 0 or x + dx >= self.width or y + dy < 0 or y + dy >= self.height:
+                            continue
+
+                        if self.water_map[x + dx][y + dy]:
+                            continue
+
+                        rabbit = Rabbit(self, x + dx, y + dy,
+                                        random.choice([True, False]),
+                                        adult=True, burrow=burrow,
+                                        age=random.randint(24*365, 24*365*4))
+                        self.animal_map[x + dx][y + dy].append(rabbit)
 
     def get_organisms_from_maps(self):
         """Looks through the maps to find organisms, and returns these in a list."""
