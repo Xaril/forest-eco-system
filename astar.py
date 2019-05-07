@@ -1,11 +1,10 @@
 import helpers
 import organisms
-from ecosystem import ANIMAL_CELL_CAPACITY
 import sys
 import math
 
 
-directions = [dir for dir in helpers.Direction if dir is not helpers.Direction.CENTER]
+directions = list(helpers.Direction)
 
 
 class Node():
@@ -66,14 +65,17 @@ def astar(traverser, water_map, plant_map, animal_map, start_x, start_y, end_x, 
             return path[::-1] # Return reversed path
 
         # Generate children
+        from ecosystem import ANIMAL_CELL_CAPACITY
         for dir in directions: # Adjacent squares
 
             # Get node position
-            node_position_x = current_node.x + dir[0]
-            node_position_y = current_node.y + dir[1]
+            node_position_x = current_node.x + dir.value[0]
+            node_position_y = current_node.y + dir.value[1]
 
             # Make sure within range
-            if node_position_x > (len(maze) - 1) or node_position_x < 0 or node_position_y > (len(maze[len(maze[0])-1]) -1) or node_position_y < 0:
+            width = len(water_map)
+            height = len(water_map[0])
+            if node_position_x >= width or node_position_x < 0 or node_position_y >= height or node_position_y < 0:
                 continue
 
             # Make sure walkable terrain

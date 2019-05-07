@@ -17,13 +17,13 @@ class Flower(organisms.Organism):
     def __init__(self, ecosystem, x, y, amount, seed=None):
         super().__init__(ecosystem, organisms.Type.FLOWER, x, y)
         if seed:
-            self._seed = seed
+            self.seed = seed
         else:
-            self._seed = amount <= 0
+            self.seed = amount <= 0
         self._amount = amount
 
     def get_image(self):
-        if self._seed:
+        if self.seed:
             return 'images/flowerSeed.png'
         else:
             return 'images/flower.png'
@@ -48,7 +48,7 @@ class Flower(organisms.Organism):
             self.__outer = outer
 
         def condition(self):
-            isFlowerAlive = self.__outer._amount > 0 or (self.__outer._seed and self.__outer._amount >= PLANTED_SEED_AMOUNT)
+            isFlowerAlive = self.__outer._amount > 0 or (self.__outer.seed and self.__outer._amount >= PLANTED_SEED_AMOUNT)
             isGroundAlive = self.__outer._ecosystem.plant_map[self.__outer.x][self.__outer.y] # Check if there is grass or ground under. Could be flooded
             return isFlowerAlive and isGroundAlive
 
@@ -91,5 +91,5 @@ class Flower(organisms.Organism):
             self.__outer._amount = min(MAX_FLOWER_AMOUNT, self.__outer._amount + growth_speed)
             self.__outer._ecosystem.plant_map[x][y].water_amount = max(0, self.__outer._ecosystem.plant_map[x][y].water_amount - FLOWER_WATER_USAGE)
             if self.__outer._amount > 0:
-                self.__outer._seed = False
+                self.__outer.seed = False
             self._status = bt.Status.SUCCESS
