@@ -131,7 +131,11 @@ class Rabbit(organisms.Organism):
         food_nearby_sequence.add_child(self.CanMove(self))
         food_nearby_sequence.add_child(self.FindPathToFood(self))
         food_nearby_sequence.add_child(self.MoveOnPath(self))
-        #TODO: Move away from burrow in search of food
+
+        move_away_from_burrow_sequence = bt.Sequence()
+        hungry_fallback.add_child(move_away_from_burrow_sequence)
+        move_away_from_burrow_sequence.add_child(self.CanMove(self))
+        move_away_from_burrow_sequence.add_child(self.MoveAwayFromBurrow(self))
 
         # Drinking
         thirsty_sequence = bt.Sequence()
@@ -154,7 +158,7 @@ class Rabbit(organisms.Organism):
         water_nearby_sequence.add_child(self.CanMove(self))
         water_nearby_sequence.add_child(self.FindPathToWater(self))
         water_nearby_sequence.add_child(self.MoveOnPath(self))
-        #TODO: Move away from burrow in search of food
+        thirsty_fallback.add_child(move_away_from_burrow_sequence)
 
         # Tiredness
 
@@ -541,6 +545,44 @@ class Rabbit(organisms.Organism):
                     self.__outer._ecosystem.animal_map[x][y].append(self.__outer)
                 else:
                     self._status = bt.Status.FAIL
+
+    class MoveAwayFromBurrow(bt.Action):
+        """Moves away from the burrow in search of food."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            burrow_x = self.__outer._burrow.x
+            burrow_y = self.__outer._burrow.y
+
+            distance = helpers.EuclidianDistance(x, y, burrow_x, burrow_y)
+
+            dx = round((x - burrow_x) / distance)
+            dy = round((y - burrow_y) / distance)
+
+            if x + dx < 0 or x + dx >= self.__outer._ecosystem.width or y + dy < 0 or y + dy >= self.__outer._ecosystem.height:
+                self._status = bt.Status.FAIL
+            elif self.__outer._ecosystem.water_map[x + dx][y + dy]:
+                self._status = bt.Status.FAIL
+            elif self.__outer._ecosystem.animal_map[x + dx][y + dy]:
+                occupied_space = 0
+                if self.__outer._ecosystem.plant_map[x + dx][y + dy] and self.__outer._ecosystem.plant_map[x + dx][y + dy].type == organisms.Type.TREE:
+                    occupied_space += 50
+                for animal in self.__outer._ecosystem.animal_map[x + dx][y + dy]:
+                    occupied_space += animal.size
+                from ecosystem import ANIMAL_CELL_CAPACITY
+                if occupied_space + self.__outer.size > ANIMAL_CELL_CAPACITY:
+                    self._status = bt.Status.FAIL
+            else:
+                self._status = bt.Status.SUCCESS
+                self.__outer._movement_timer += self.__outer._movement_cooldown
+                self.__outer._ecosystem.animal_map[x][y].remove(self.__outer)
+                self.__outer.x += dx
+                self.__outer.y += dy
+                self.__outer._ecosystem.animal_map[x + dx][y + dy].append(self.__outer)
 
     ##########
     # THIRST #
