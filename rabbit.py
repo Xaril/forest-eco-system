@@ -174,16 +174,18 @@ class Rabbit(organisms.Organism):
         burrow_sequence.add_child(self.InBurrowOrGrass(self))
         burrow_sequence.add_child(self.Sleep(self))
 
-        """burrow_available_sequence = bt.Sequence()
+        burrow_available_sequence = bt.Sequence()
         tired_fallback.add_child(burrow_available_sequence)
         burrow_available_sequence.add_child(self.BurrowOrGrassAvailable(self))
+        burrow_available_sequence.add_child(self.CanMove(self))
         burrow_available_sequence.add_child(self.FindPathToBurrowOrGrass(self))
         burrow_available_sequence.add_child(self.MoveOnPath(self))
 
         create_burrow_sequence = bt.Sequence()
         tired_fallback.add_child(create_burrow_sequence)
+        create_burrow_sequence.add_child(self.NotBurrowOrGrassAvailable(self))
         create_burrow_sequence.add_child(self.CreateBurrow(self))
-        create_burrow_sequence.add_child(self.Sleep(self))"""
+        create_burrow_sequence.add_child(self.Sleep(self))
 
         # Pooping
 
@@ -597,8 +599,14 @@ class Rabbit(organisms.Organism):
 
             distance = helpers.EuclidianDistance(x, y, burrow_x, burrow_y)
 
-            dx = round((x - burrow_x) / distance)
-            dy = round((y - burrow_y) / distance)
+            dx = 0
+            dy = 0
+            if distance == 0:
+                dx = random.randint(-1, 2)
+                dy = random.randint(-1, 2)
+            else:
+                dx = round((x - burrow_x) / distance)
+                dy = round((y - burrow_y) / distance)
 
             if x + dx < 0 or x + dx >= self.__outer._ecosystem.width or y + dy < 0 or y + dy >= self.__outer._ecosystem.height:
                 self._status = bt.Status.FAIL
@@ -765,6 +773,133 @@ class Rabbit(organisms.Organism):
         def action(self):
             self.__outer._asleep = True
             self._status = bt.Status.SUCCESS
+
+    class BurrowOrGrassAvailable(bt.Condition):
+        """Determines if there is tall grass within the vision range, or if the
+        burrow is close enough such that the rabbit can get there before getting
+        too tired."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            burrow = self.__outer._burrow
+            vision_range = self.__outer._vision_range
+            ecosystem = self.__outer._ecosystem
+
+            for dx in range(-vision_range['left'], vision_range['right']+1):
+                for dy in range(-vision_range['up'], vision_range['down']+1):
+                    if x + dx < 0 or x + dx >= ecosystem.width or y + dy < 0 or y + dy >= ecosystem.height:
+                        continue
+
+                    if ecosystem.plant_map[x + dx][y + dy] and ecosystem.plant_map[x + dx][y + dy].type == organisms.Type.GRASS:
+                        if ecosystem.plant_map[x + dx][y + dy].amount >= MUCH_GRASS:
+                            return True
+
+            burrow_distance = helpers.EuclidianDistance(x, y, burrow.x, burrow.y)
+            safe_distance = round((TIRED_DAMAGE_THRESHOLD + 0.5 * (TIRED_DAMAGE_THRESHOLD - TIRED_SEEK_THRESHOLD) - self.__outer._tired) / self.__outer._tired_speed)
+
+            if burrow_distance <= safe_distance:
+                return True
+
+            return False
+
+    class FindPathToBurrowOrGrass(bt.Action):
+        """Finds a path to the rabbit's burrow or to a tall grass patch. The
+        burrow is preferred as it is safe from predators."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            burrow = self.__outer._burrow
+            vision_range = self.__outer._vision_range
+            ecosystem = self.__outer._ecosystem
+
+            burrow_distance = helpers.EuclidianDistance(x, y, burrow.x, burrow.y)
+            safe_distance = round((TIRED_DAMAGE_THRESHOLD + 0.5 * (TIRED_DAMAGE_THRESHOLD - TIRED_SEEK_THRESHOLD) - self.__outer._tired) / self.__outer._tired_speed)
+            if burrow_distance <= safe_distance:
+                path = astar(self.__outer, ecosystem.water_map, ecosystem.plant_map, ecosystem.animal_map,
+                             x, y, burrow.x, burrow.y, max_path_length=10)
+            else:
+                closest_grass = None
+                best_distance = math.inf
+                for dx in range(-vision_range['left'], vision_range['right']+1):
+                    for dy in range(-vision_range['up'], vision_range['down']+1):
+                        if x + dx < 0 or x + dx >= ecosystem.width or y + dy < 0 or y + dy >= ecosystem.height:
+                            continue
+
+                        if ecosystem.plant_map[x + dx][y + dy] and ecosystem.plant_map[x + dx][y + dy].type == organisms.Type.GRASS:
+                            if ecosystem.plant_map[x + dx][y + dy].amount >= MUCH_GRASS:
+                                distance = helpers.EuclidianDistance(x, y, x + dx, y + dy)
+                                if distance < best_distance:
+                                    closest_grass = ecosystem.plant_map[x + dx][y + dy]
+                                    best_distance = distance
+                path = astar(self.__outer, ecosystem.water_map, ecosystem.plant_map, ecosystem.animal_map,
+                                   x, y, closest_grass.x, closest_grass.y, max_path_length=10)
+
+            if len(path) > 0:
+                path.pop(0)
+                self.__outer._movement_path = path
+                self._status = bt.Status.SUCCESS
+            else:
+                self.__outer._movement_path = None
+                self._status = bt.Status.FAIL
+
+    class NotBurrowOrGrassAvailable(bt.Condition):
+        """Determines if there is no tall grass within the vision range, or if the
+        burrow is too far away."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            burrow = self.__outer._burrow
+            vision_range = self.__outer._vision_range
+            ecosystem = self.__outer._ecosystem
+
+            for dx in range(-vision_range['left'], vision_range['right']+1):
+                for dy in range(-vision_range['up'], vision_range['down']+1):
+                    if x + dx < 0 or x + dx >= ecosystem.width or y + dy < 0 or y + dy >= ecosystem.height:
+                        continue
+
+                    if ecosystem.plant_map[x + dx][y + dy] and ecosystem.plant_map[x + dx][y + dy].type == organisms.Type.GRASS:
+                        if ecosystem.plant_map[x + dx][y + dy].amount >= MUCH_GRASS:
+                            return False
+
+            burrow_distance = helpers.EuclidianDistance(x, y, burrow.x, burrow.y)
+            safe_distance = round((TIRED_DAMAGE_THRESHOLD + 0.5 * (TIRED_DAMAGE_THRESHOLD - TIRED_SEEK_THRESHOLD) - self.__outer._tired) / self.__outer._tired_speed)
+
+            if burrow_distance <= safe_distance:
+                return False
+
+            return True
+
+    class CreateBurrow(bt.Action):
+        """The rabbit creates a new burrow."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            from burrow import Burrow
+
+            x = self.__outer.x
+            y = self.__outer.y
+            burrow = Burrow(self.__outer._ecosystem, x, y)
+            self.__outer._ecosystem.animal_map[x][y].insert(0, burrow)
+            self.__outer._burrow = burrow
+
+            # Increase hunger due to having to dig a hole
+            self.__outer._hunger += 3 * self.__outer._hunger_speed
+            self._status = bt.Status.SUCCESS
+
 
     ###################
     # RANDOM MOVEMENT #
