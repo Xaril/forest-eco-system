@@ -22,6 +22,9 @@ GRASS_HUNGER_SATISFACTION = 20
 GRASS_EATING_AMOUNT = 0.2 * MAX_GRASS_AMOUNT
 WATER_DRINKING_AMOUNT = 0.001 * WATER_POOL_CAPACITY
 
+EATING_AND_DRINKING_SLEEP_FACTOR = 0.3
+SLEEP_TIME = 8
+
 HEAL_AMOUNT = 4
 
 REPRODUCTION_TIME = 24*30 # Rabbits are pregnant for 30 days
@@ -31,7 +34,7 @@ REPRODUCTION_COOLDOWN = 24*5 # Rabbits usually have to wait 5 days before being 
 class Rabbit(organisms.Organism):
     """Defines the rabbit."""
     def __init__(self, ecosystem, x, y, female, adult=False, hunger=0,
-                 thirst=0, tired=0, health=100, size=20, life_span=24*365*7,
+                 thirst=0, tired=0, health=100, size=20, life_span=24*365*5,
                  hunger_speed=50/36, thirst_speed=50/72, tired_speed=50/36,
                  vision_range={'left': 4, 'right': 4, 'up': 4, 'down': 4},
                  burrow=None, in_burrow=False, movement_cooldown=3, age=24*365):
@@ -62,6 +65,9 @@ class Rabbit(organisms.Organism):
         self._burrow = burrow
         self._in_burrow = False
 
+        self._asleep = False
+        self._sleep_time = 0
+
         self._movement_cooldown = movement_cooldown
         self._movement_timer = 3
         self._movement_path = None
@@ -80,13 +86,21 @@ class Rabbit(organisms.Organism):
         tree.add_child(self.ReduceMovementTimer(self))
         tree.add_child(self.IncreaseHunger(self))
         tree.add_child(self.IncreaseThirst(self))
-        tree.add_child(self.IncreaseTired(self))
+        tree.add_child(self.ChangeTired(self))
         tree.add_child(self.TakeDamage(self))
         tree.add_child(self.ReplenishHealth(self))
 
         logic_fallback = bt.FallBack()
         tree.add_child(logic_fallback)
         # Sleeping
+        sleep_sequence = bt.Sequence()
+        logic_fallback.add_child(sleep_sequence)
+        sleep_sequence.add_child(self.Sleeping(self))
+
+        sleep_fallback = bt.FallBack()
+        sleep_sequence.add_child(sleep_fallback)
+        sleep_fallback.add_child(self.ShouldNotWakeUp(self))
+        sleep_fallback.add_child(self.WakeUp(self))
 
         # Dying
         die_sequence = bt.Sequence()
@@ -142,9 +156,9 @@ class Rabbit(organisms.Organism):
         water_nearby_sequence.add_child(self.MoveOnPath(self))
         #TODO: Move away from burrow in search of food
 
-        # Pooping
+        # Tiredness
 
-        # Sleeping
+        # Pooping
 
         # Giving birth
 
@@ -179,7 +193,8 @@ class Rabbit(organisms.Organism):
             self.__outer = outer
 
         def action(self):
-            self.__outer._hunger += self.__outer._hunger_speed
+            factor = 1 if not self.__outer._asleep else EATING_AND_DRINKING_SLEEP_FACTOR
+            self.__outer._hunger += factor * self.__outer._hunger_speed
             self._status = bt.Status.SUCCESS
 
     class IncreaseThirst(bt.Action):
@@ -189,17 +204,22 @@ class Rabbit(organisms.Organism):
             self.__outer = outer
 
         def action(self):
-            self.__outer._thirst += self.__outer._thirst_speed
+            factor = 1 if not self.__outer._asleep else EATING_AND_DRINKING_SLEEP_FACTOR
+            self.__outer._thirst += factor * self.__outer._thirst_speed
             self._status = bt.Status.SUCCESS
 
-    class IncreaseTired(bt.Action):
-        """Increases the rabbit's tiredness."""
+    class ChangeTired(bt.Action):
+        """Changes the rabbit's tiredness depending on if it is awake."""
         def __init__(self, outer):
             super().__init__()
             self.__outer = outer
 
         def action(self):
-            #self.__outer._tired += self.__outer._tired_speed
+            if not self.__outer._asleep:
+                self.__outer._tired += self.__outer._tired_speed
+            else:
+                self.__outer._tired = max(0, self.__outer._tired - TIRED_DAMAGE_THRESHOLD / SLEEP_TIME)
+                self.__outer._sleep_time += 1
             self._status = bt.Status.SUCCESS
 
     class TakeDamage(bt.Action):
@@ -241,6 +261,36 @@ class Rabbit(organisms.Organism):
 
             if hunger < HUNGER_SEEK_THRESHOLD and thirst < THIRST_SEEK_THRESHOLD and tired < TIRED_SEEK_THRESHOLD:
                 self.__outer._health += HEAL_AMOUNT
+
+    ############
+    # SLEEPING #
+    ############
+
+    class Sleeping(bt.Condition):
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer._asleep
+
+    class ShouldNotWakeUp(bt.Condition):
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer._sleep_time < SLEEP_TIME
+
+    class WakeUp(bt.Action):
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            self.__outer._asleep = False
+            self.__outer._sleep_time = 0
+            self._status = bt.Status.SUCCESS
 
     #########
     # DYING #
