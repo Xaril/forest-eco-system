@@ -84,6 +84,7 @@ class Rabbit(organisms.Organism):
         """Generates the tree for the rabbit."""
         tree = bt.Sequence()
         tree.add_child(self.ReduceMovementTimer(self))
+        tree.add_child(self.BurrowMovement(self))
         tree.add_child(self.IncreaseHunger(self))
         tree.add_child(self.IncreaseThirst(self))
         tree.add_child(self.ChangeTired(self))
@@ -161,6 +162,28 @@ class Rabbit(organisms.Organism):
         thirsty_fallback.add_child(move_away_from_burrow_sequence)
 
         # Tiredness
+        tired_sequence = bt.Sequence()
+        logic_fallback.add_child(tired_sequence)
+        tired_sequence.add_child(self.Tired(self))
+
+        tired_fallback = bt.FallBack()
+        tired_sequence.add_child(tired_fallback)
+
+        burrow_sequence = bt.Sequence()
+        tired_fallback.add_child(burrow_sequence)
+        burrow_sequence.add_child(self.InBurrowOrGrass(self))
+        burrow_sequence.add_child(self.Sleep(self))
+
+        """burrow_available_sequence = bt.Sequence()
+        tired_fallback.add_child(burrow_available_sequence)
+        burrow_available_sequence.add_child(self.BurrowOrGrassAvailable(self))
+        burrow_available_sequence.add_child(self.FindPathToBurrowOrGrass(self))
+        burrow_available_sequence.add_child(self.MoveOnPath(self))
+
+        create_burrow_sequence = bt.Sequence()
+        tired_fallback.add_child(create_burrow_sequence)
+        create_burrow_sequence.add_child(self.CreateBurrow(self))
+        create_burrow_sequence.add_child(self.Sleep(self))"""
 
         # Pooping
 
@@ -188,6 +211,20 @@ class Rabbit(organisms.Organism):
 
         def action(self):
             self.__outer._movement_timer = max(0, self.__outer._movement_timer - 1)
+            self._status = bt.Status.SUCCESS
+
+    class BurrowMovement(bt.Action):
+        """Updates whether the rabbit is in its burrow or not."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            burrow = self.__outer._burrow
+
+            self.__outer._in_burrow = (x == burrow.x and y == burrow.y)
             self._status = bt.Status.SUCCESS
 
     class IncreaseHunger(bt.Action):
@@ -686,6 +723,48 @@ class Rabbit(organisms.Organism):
             else:
                 self.__outer._movement_path = None
                 self._status = bt.Status.FAIL
+
+    #############
+    # TIREDNESS #
+    #############
+
+    class Tired(bt.Condition):
+        """Determines if the rabbit is tired."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer._tired >= TIRED_SEEK_THRESHOLD
+
+    class InBurrowOrGrass(bt.Condition):
+        """Determines if the rabbit is in its burrow or in tall grass."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            burrow = self.__outer._burrow
+            ecosystem = self.__outer._ecosystem
+
+            if x == burrow.x and y == burrow.y:
+                return True
+            if ecosystem.plant_map[x][y] and ecosystem.plant_map[x][y].type == organisms.Type.GRASS:
+                if ecosystem.plant_map[x][y].amount >= MUCH_GRASS:
+                    return True
+            return False
+
+    class Sleep(bt.Action):
+        """Rabbit goes to sleep."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            self.__outer._asleep = True
+            self._status = bt.Status.SUCCESS
 
     ###################
     # RANDOM MOVEMENT #
