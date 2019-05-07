@@ -84,12 +84,18 @@ class Rabbit(organisms.Organism):
         # Sleeping
 
         # Dying
+        die_sequence = bt.Sequence()
+        logic_fallback.add_child(die_sequence)
+        die_sequence.add_child(self.Dying(self))
+        die_sequence.add_child(self.Die(self))
 
         # Avoiding enemies
 
         # Eating
         hungry_sequence = bt.Sequence()
         logic_fallback.add_child(hungry_sequence)
+        hungry_sequence.add_child(self.HungrierThanThirsty(self))
+        hungry_sequence.add_child(self.HungrierThanTired(self))
         hungry_sequence.add_child(self.Hungry(self))
 
         hungry_fallback = bt.FallBack()
@@ -204,6 +210,35 @@ class Rabbit(organisms.Organism):
             if hunger < HUNGER_SEEK_THRESHOLD and thirst < THIRST_SEEK_THRESHOLD and tired < TIRED_SEEK_THRESHOLD:
                 self.__outer._health += HEAL_AMOUNT
 
+    #########
+    # DYING #
+    #########
+
+    class Dying(bt.Condition):
+        """Check if the rabbit is dying."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer._health <= 0
+
+    class Die(bt.Action):
+        """Kill the rabbit."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            self.__outer._ecosystem.animal_map[x][y].remove(self.__outer)
+            self._status = bt.Status.SUCCESS
+
+    ###########
+    # ENEMIES #
+    ###########
+
     class CanMove(bt.Condition):
         """Check if the rabbit can move."""
         def __init__(self, outer):
@@ -216,6 +251,24 @@ class Rabbit(organisms.Organism):
     ##########
     # HUNGER #
     ##########
+
+    class HungrierThanThirsty(bt.Condition):
+        """Check if the rabbit is hungrier than it is thirsty."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer._hunger >= self.__outer._thirst
+
+    class HungrierThanTired(bt.Condition):
+        """Check if the rabbit is hungrier than it is tired."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer._hunger >= self.__outer._tired
 
     class Hungry(bt.Condition):
         """Check if the rabbit is hungry."""
