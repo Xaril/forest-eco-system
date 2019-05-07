@@ -89,11 +89,11 @@ class Water(organisms.Organism):
                 water_over = (self.__outer.water_amount - self.__outer.water_capacity) / len(cells_to_add_water)
                 for cell in cells_to_add_water:
                     if cell.type == organisms.Type.WATER:
-                        water_moved = water_over * constants.WATER_TO_WATER_MOVE_SPEED
+                        water_moved = water_over * constants.WATER_TO_WATER_WATER_MOVE_SPEED
                     elif cell.type == organisms.Type.EARTH:
-                        water_moved = water_over * constants.WATER_TO_WATER_MOVE_SPEED
+                        water_moved = water_over * constants.WATER_TO_EARTH_WATER_MOVE_SPEED
                     elif cell.type == organisms.Type.GRASS:
-                        water_moved = water_over * constants.WATER_TO_GRASS_MOVE_SPEED
+                        water_moved = water_over * constants.WATER_TO_GRASS_WATER_MOVE_SPEED
 
                     self.__outer.water_amount -= water_moved
                     cell.water_amount += water_moved
