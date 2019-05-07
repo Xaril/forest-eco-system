@@ -6,6 +6,7 @@ import math
 from astar import astar
 from grass import MAX_GRASS_AMOUNT
 from grass import REPRODUCTION_THRESHOLD as MUCH_GRASS
+from water import WATER_POOL_CAPACITY
 
 HUNGER_SEEK_THRESHOLD = 50
 THIRST_SEEK_THRESHOLD = 50
@@ -13,10 +14,13 @@ TIRED_SEEK_THRESHOLD = 50
 HUNGER_DAMAGE_THRESHOLD = 75
 THIRST_DAMAGE_THRESHOLD = 85
 TIRED_DAMAGE_THRESHOLD = 80
-HUNGER_DAMAGE_FACTOR = 0.5
+HUNGER_DAMAGE_FACTOR = 0.2
+THIRST_DAMAGE_FACTOR = 0.3
+TIRED_DAMAGE_FACTOR = 0.1
 FLOWER_HUNGER_SATISFACTION = 45
 GRASS_HUNGER_SATISFACTION = 20
 GRASS_EATING_AMOUNT = 0.2 * MAX_GRASS_AMOUNT
+WATER_DRINKING_AMOUNT = 0.001 * WATER_POOL_CAPACITY
 
 HEAL_AMOUNT = 4
 
@@ -30,7 +34,7 @@ class Rabbit(organisms.Organism):
                  thirst=0, tired=0, health=100, size=20, life_span=24*365*7,
                  hunger_speed=50/36, thirst_speed=50/72, tired_speed=50/36,
                  vision_range={'left': 4, 'right': 4, 'up': 4, 'down': 4},
-                 burrow=None, in_burrow=False, movement_cooldown=3):
+                 burrow=None, in_burrow=False, movement_cooldown=3, age=24*365):
         super().__init__(ecosystem, organisms.Type.RABBIT, x, y)
         self._female = female
         self._adult = adult
@@ -41,6 +45,7 @@ class Rabbit(organisms.Organism):
         self._health = health
         self.size = size
         self._life_span = life_span
+        self._age = age
         self._hunger_speed = hunger_speed
         self._thirst_speed = thirst_speed
         self._tired_speed = tired_speed
@@ -115,6 +120,27 @@ class Rabbit(organisms.Organism):
         #TODO: Move away from burrow in search of food
 
         # Drinking
+        thirsty_sequence = bt.Sequence()
+        logic_fallback.add_child(thirsty_sequence)
+        thirsty_sequence.add_child(self.ThirstierThanTired(self))
+        thirsty_sequence.add_child(self.Thirsty(self))
+
+        thirsty_fallback = bt.FallBack()
+        thirsty_sequence.add_child(thirsty_fallback)
+
+        adjacent_water_sequence = bt.Sequence()
+        thirsty_fallback.add_child(adjacent_water_sequence)
+        adjacent_water_sequence.add_child(self.WaterAdjacent(self))
+        adjacent_water_sequence.add_child(self.Drink(self))
+
+        water_nearby_sequence = bt.Sequence()
+        thirsty_fallback.add_child(water_nearby_sequence)
+        # Might want rabbits to only know about water they've seen,
+        # instead of knowing about water globally
+        water_nearby_sequence.add_child(self.CanMove(self))
+        water_nearby_sequence.add_child(self.FindPathToWater(self))
+        water_nearby_sequence.add_child(self.MoveOnPath(self))
+        #TODO: Move away from burrow in search of food
 
         # Pooping
 
@@ -173,7 +199,7 @@ class Rabbit(organisms.Organism):
             self.__outer = outer
 
         def action(self):
-            self.__outer._tired += self.__outer._tired_speed
+            #self.__outer._tired += self.__outer._tired_speed
             self._status = bt.Status.SUCCESS
 
     class TakeDamage(bt.Action):
@@ -191,8 +217,14 @@ class Rabbit(organisms.Organism):
                 self.__outer._health -= (hunger - HUNGER_DAMAGE_THRESHOLD) * HUNGER_DAMAGE_FACTOR
 
             # Thirst
+            thirst = self.__outer._thirst
+            if thirst >= THIRST_DAMAGE_THRESHOLD:
+                self.__outer._thirst -= (thirst - THIRST_DAMAGE_THRESHOLD) * THIRST_DAMAGE_FACTOR
 
             # Tiredness
+            tired = self.__outer._tired
+            if tired >= TIRED_DAMAGE_THRESHOLD:
+                self.__outer._tired -= (tired - TIRED_DAMAGE_THRESHOLD) * TIRED_DAMAGE_FACTOR
 
     class ReplenishHealth(bt.Action):
         """Replenish health if in a healthy condition."""
@@ -221,7 +253,7 @@ class Rabbit(organisms.Organism):
             self.__outer = outer
 
         def condition(self):
-            return self.__outer._health <= 0
+            return self.__outer._health <= 0 or self.__outer._age >= self.__outer._life_span
 
     class Die(bt.Action):
         """Kill the rabbit."""
@@ -459,6 +491,109 @@ class Rabbit(organisms.Organism):
                     self.__outer._ecosystem.animal_map[x][y].append(self.__outer)
                 else:
                     self._status = bt.Status.FAIL
+
+    ##########
+    # THIRST #
+    ##########
+
+    class ThirstierThanTired(bt.Condition):
+        """Check if the rabbit is thrstier than it is tired."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer._thirst >= self.__outer._tired
+
+    class Thirsty(bt.Condition):
+        """Check if the rabbit is thirsty."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer._thirst >= THIRST_SEEK_THRESHOLD
+
+    class WaterAdjacent(bt.Condition):
+        """Check if there is water next to the rabbit."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            ecosystem = self.__outer._ecosystem
+
+            for direction in list(helpers.Direction):
+                dx = direction.value[0]
+                dy = direction.value[1]
+
+                if x + dx < 0 or x + dx >= ecosystem.width or y + dy < 0 or y + dy >= ecosystem.height:
+                    continue
+
+                if ecosystem.water_map[x + dx][y + dy]:
+                    return True
+
+            return False
+
+    class Drink(bt.Action):
+        """Drinks from an adjacent cell."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            ecosystem = self.__outer._ecosystem
+
+            self._status = bt.Status.FAIL
+            for direction in list(helpers.Direction):
+                dx = direction.value[0]
+                dy = direction.value[1]
+
+                if x + dx < 0 or x + dx >= ecosystem.width or y + dy < 0 or y + dy >= ecosystem.height:
+                    continue
+
+                if ecosystem.water_map[x + dx][y + dy]:
+                    ecosystem.water_map[x + dx][y + dy].water_amount -= WATER_DRINKING_AMOUNT
+                    self.__outer._thirst = 0
+                    self._status = bt.Status.SUCCESS
+                    break
+
+    class FindPathToWater(bt.Action):
+        """Finds a path to the best water source."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            ecosystem = self.__outer._ecosystem
+
+            best_water = None
+            best_distance = math.inf
+
+            for water_x in range(ecosystem.width):
+                for water_y in range(ecosystem.height):
+                    distance = helpers.EuclidianDistance(x, y, water_x, water_y)
+                    if distance < best_distance:
+                        if ecosystem.water_map[water_x][water_y]:
+                            best_water = ecosystem.water_map[water_x][water_y]
+                            best_distance = distance
+
+
+            path = astar(self.__outer, ecosystem.water_map, ecosystem.plant_map, ecosystem.animal_map,
+                               x, y, best_water.x, best_water.y, max_path_length=10)
+            if len(path) > 0:
+                path.pop(0)
+                self.__outer._movement_path = path
+                self._status = bt.Status.SUCCESS
+            else:
+                self.__outer._movement_path = None
+                self._status = bt.Status.FAIL
 
     ###################
     # RANDOM MOVEMENT #
