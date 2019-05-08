@@ -90,6 +90,7 @@ class Rabbit(organisms.Organism):
         tree.add_child(self.IncreaseHunger(self))
         tree.add_child(self.IncreaseThirst(self))
         tree.add_child(self.ChangeTired(self))
+        tree.add_child(self.IncreaseAge(self))
         tree.add_child(self.TakeDamage(self))
         tree.add_child(self.ReplenishHealth(self))
 
@@ -323,6 +324,22 @@ class Rabbit(organisms.Organism):
             else:
                 self.__outer._tired = max(0, self.__outer._tired - TIRED_DAMAGE_THRESHOLD / SLEEP_TIME)
                 self.__outer._sleep_time += 1
+            self._status = bt.Status.SUCCESS
+
+    class IncreaseAge(bt.Action):
+        """Increases the rabbit's age."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            age = self.__outer._age
+            self.__outer._age += 1
+
+            # Become adults
+            if age < 24*365 and self.__outer._age >= 24*365:
+                self.__outer._adult = True
+                self.__outer.can_reproduce = True
             self._status = bt.Status.SUCCESS
 
     class TakeDamage(bt.Action):
