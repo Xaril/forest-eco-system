@@ -53,7 +53,7 @@ class Earth(organisms.Organism):
             water = Water(self.__outer._ecosystem, x, y, water_over)
             self.__outer._ecosystem.water_map[x][y] = water
             self.__outer._ecosystem.plant_map[x][y] = None
-            self.__outer._ecosystem.flower_map[x][y] = None
+            self.__outer._ecosystem.flower_map[x][y].clear()
             self._status = bt.Status.FAIL
 
 

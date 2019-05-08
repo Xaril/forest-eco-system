@@ -79,7 +79,7 @@ class Flower(organisms.Organism):
         def action(self):
             x = self.__outer.x
             y = self.__outer.y
-            self.__outer._ecosystem.flower_map[x][y] = None
+            self.__outer._ecosystem.flower_map[x][y].remove(self.__outer) 
             self._status = bt.Status.SUCCESS
 
 

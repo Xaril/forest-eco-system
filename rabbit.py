@@ -556,7 +556,7 @@ class Rabbit(organisms.Organism):
             if ecosystem.plant_map[x][y] and ecosystem.plant_map[x][y].type == organisms.Type.GRASS:
                 return True
 
-            if ecosystem.flower_map[x][y] and not ecosystem.flower_map[x][y].seed:
+            if ecosystem.flower_map[x][y] and not ecosystem.flower_map[x][y][0].seed:
                 return True
 
             return False
@@ -573,8 +573,8 @@ class Rabbit(organisms.Organism):
             ecosystem = self.__outer._ecosystem
 
             # Prioritize flowers
-            if ecosystem.flower_map[x][y] and not ecosystem.flower_map[x][y].seed:
-                ecosystem.flower_map[x][y] = None
+            if ecosystem.flower_map[x][y] and not ecosystem.flower_map[x][y][0].seed:
+                ecosystem.flower_map[x][y].pop(0)
                 self.__outer._hunger = max(0, self.__outer._hunger - FLOWER_HUNGER_SATISFACTION)
                 # TODO: Make poop contain flower seeds
                 # TODO: Make hunger being negative result in size increase
@@ -602,7 +602,7 @@ class Rabbit(organisms.Organism):
                     if ecosystem.plant_map[x + dx][y + dy] and ecosystem.plant_map[x + dx][y + dy].type == organisms.Type.GRASS:
                         return True
 
-                    if ecosystem.flower_map[x + dx][y + dy] and not ecosystem.flower_map[x + dx][y + dy].seed:
+                    if ecosystem.flower_map[x + dx][y + dy] and not ecosystem.flower_map[x + dx][y + dy][0].seed:
                         return True
 
             return False
@@ -635,8 +635,8 @@ class Rabbit(organisms.Organism):
 
                         distance = helpers.EuclidianDistance(x, y, x + dx, y + dy)
                         if distance < best_distance:
-                            if ecosystem.flower_map[x + dx][y + dy] and not ecosystem.flower_map[x + dx][y + dy].seed:
-                                best_food = ecosystem.flower_map[x + dx][y + dy]
+                            if ecosystem.flower_map[x + dx][y + dy] and not ecosystem.flower_map[x + dx][y + dy][0].seed:
+                                best_food = ecosystem.flower_map[x + dx][y + dy][0]
                                 best_distance = distance
                             elif ecosystem.plant_map[x + dx][y + dy] and ecosystem.plant_map[x + dx][y + dy].type == organisms.Type.GRASS:
                                 best_food = ecosystem.plant_map[x + dx][y + dy]
@@ -652,14 +652,14 @@ class Rabbit(organisms.Organism):
                         distance = helpers.EuclidianDistance(x, y, x + dx, y + dy)
                         if best_food:
                             if best_food.type == organisms.Type.FLOWER:
-                                if ecosystem.flower_map[x + dx][y + dy] and not ecosystem.flower_map[x + dx][y + dy].seed:
+                                if ecosystem.flower_map[x + dx][y + dy] and not ecosystem.flower_map[x + dx][y + dy][0].seed:
                                     if distance < best_distance:
-                                        best_food = ecosystem.flower_map[x + dx][y + dy]
+                                        best_food = ecosystem.flower_map[x + dx][y + dy][0]
                                         best_distance = distance
                             elif best_food.type == organisms.Type.GRASS:
                                 # Found a flower, that is the best food.
-                                if ecosystem.flower_map[x + dx][y + dy] and not ecosystem.flower_map[x + dx][y + dy].seed:
-                                    best_food = ecosystem.flower_map[x + dx][y + dy]
+                                if ecosystem.flower_map[x + dx][y + dy] and not ecosystem.flower_map[x + dx][y + dy][0].seed:
+                                    best_food = ecosystem.flower_map[x + dx][y + dy][0]
                                     best_distance = distance
                                 else:
                                     # Only consider patches with lots of grass
@@ -680,8 +680,8 @@ class Rabbit(organisms.Organism):
                                                     best_food = ecosystem.plant_map[x + dx][y + dy]
                                                     best_distance = distance
                         else:
-                            if ecosystem.flower_map[x + dx][y + dy] and not ecosystem.flower_map[x + dx][y + dy].seed:
-                                best_food = ecosystem.flower_map[x + dx][y + dy]
+                            if ecosystem.flower_map[x + dx][y + dy] and not ecosystem.flower_map[x + dx][y + dy][0].seed:
+                                best_food = ecosystem.flower_map[x + dx][y + dy][0]
                                 best_distance = distance
                             elif ecosystem.plant_map[x + dx][y + dy] and ecosystem.plant_map[x + dx][y + dy].type == organisms.Type.GRASS:
                                 best_food = ecosystem.plant_map[x + dx][y + dy]

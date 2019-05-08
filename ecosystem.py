@@ -52,7 +52,7 @@ class Ecosystem():
         for x in range(self.width):
             self.flower_map.append([])
             for y in range(self.height):
-                self.flower_map[x].append(None)
+                self.flower_map[x].append([])
 
         self.animal_map = []
         for x in range(self.width):
@@ -135,7 +135,7 @@ class Ecosystem():
                     if self.plant_map[x][y] and self.plant_map[x][y].type == Type.TREE:
                         continue
                     flower = Flower(self, x, y, random.randint(-50, 101))
-                    self.flower_map[x][y] = flower
+                    self.flower_map[x][y].append(flower)
 
         # Animal map
         for x in range(self.width):
@@ -181,8 +181,8 @@ class Ecosystem():
         # Flower map
         for x in range(self.width):
             for y in range(self.height):
-                if self.flower_map[x][y]:
-                    organisms.append(self.flower_map[x][y])
+                for flower in self.flower_map[x][y]:
+                    organisms.append(flower)
 
         # Animal map
         for x in range(self.width):
