@@ -108,7 +108,8 @@ class Ecosystem():
                     tree = Tree(self, x, y)
                     self.plant_map[x][y] = tree
                     if random.random() <= HIVES_PER_TREE:
-                        self.animal_map[x][y].append(Hive(self, x, y))
+                        hive = Hive(self, x, y)
+                        self.animal_map[x][y].append(hive)
                         bee_amount = random.randint(HIVE_BEE_MIN_AMOUNT, HIVE_BEE_MAX_AMOUNT+1)
                         for _ in range(bee_amount):
                             dx = random.randint(-3, 4)
@@ -116,7 +117,7 @@ class Ecosystem():
 
                             if x + dx < 0 or x + dx >= self.width or y + dy < 0 or y + dy >= self.height:
                                 continue
-                            bee = Bee(self, x+dx, y+dy)
+                            bee = Bee(self, x+dx, y+dy, hive=hive)
                             self.animal_map[x + dx][y + dy].append(bee)
                 elif random.random() <= GRASS_INIT_PERCENTAGE:
                     grass = Grass(self, x, y, random.randint(-80, 101), None, self.get_initial_water_level(x,y))

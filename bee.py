@@ -20,7 +20,7 @@ class Bee(organisms.Organism):
         self._tired_speed = tired_speed
         self._vision_range = vision_range
         self._hive = hive
-        self._in_hive = in_hive
+        self.in_hive = in_hive
         self._movement_cooldown = movement_cooldown
         self._age = age
 
