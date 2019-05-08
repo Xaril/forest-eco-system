@@ -209,8 +209,10 @@ class Ecosystem():
 
         return INITAL_WATER_MAX_AMOUNT * (1 - InverseLerp(0, max_possible_distance, closest_lake_distance))
 
-    def update_nectar_smell_map(self):
-        return 0
+    def reset_nectar_smell_map(self):
+        for x in range(self.width):
+            for y in range(self.height):
+                self.nectar_smell_map[x][y] = 0
 
 
     def run(self):
@@ -218,11 +220,11 @@ class Ecosystem():
         organisms = self.get_organisms_from_maps()
 
         self.weather.simulate_weather()
-        self.update_nectar_smell_map()
 
         for organism in organisms:
             organism.run()
 
         organisms = self.get_organisms_from_maps()
+        self.reset_nectar_smell_map()
 
         return organisms
