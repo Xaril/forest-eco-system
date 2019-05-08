@@ -12,6 +12,7 @@ class Type(Enum):
     FLOWER = 4
     RABBIT = 5
     BURROW = 6
+    HIVE = 7
 
 
 class Organism(ABC):

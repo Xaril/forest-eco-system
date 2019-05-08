@@ -5,9 +5,11 @@ from earth import Earth
 from flower import Flower
 from rabbit import Rabbit
 from burrow import Burrow
+from hive import Hive
 from water import Water
 from weather import Weather
 from helpers import Direction, EuclidianDistance, InverseLerp
+
 
 TREE_PERCENTAGE = 0.1
 GRASS_INIT_PERCENTAGE = 0.2
@@ -19,6 +21,7 @@ ANIMAL_CELL_CAPACITY = 100
 BURROW_PERCENTAGE = 0.004
 BURROW_RABBIT_MIN_AMOUNT = 2
 BURROW_RABBIT_MAX_AMOUNT = 5
+HIVES_PER_TREE = 0.02
 
 
 class Ecosystem():
@@ -101,6 +104,8 @@ class Ecosystem():
                 if random.random() <= TREE_PERCENTAGE:
                     tree = Tree(self, x, y)
                     self.plant_map[x][y] = tree
+                    if random.random() <= HIVES_PER_TREE:
+                        self.animal_map[x][y].append(Hive(self, x, y))
                 elif random.random() <= GRASS_INIT_PERCENTAGE:
                     grass = Grass(self, x, y, random.randint(-80, 101), None, self.get_initial_water_level(x,y))
                     self.plant_map[x][y] = grass
