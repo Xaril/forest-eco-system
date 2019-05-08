@@ -5,6 +5,7 @@ from earth import Earth
 from flower import Flower
 from rabbit import Rabbit
 from burrow import Burrow
+from bee import Bee
 from hive import Hive
 from water import Water
 from weather import Weather
@@ -22,6 +23,8 @@ BURROW_PERCENTAGE = 0.004
 BURROW_RABBIT_MIN_AMOUNT = 2
 BURROW_RABBIT_MAX_AMOUNT = 5
 HIVES_PER_TREE = 0.02
+HIVE_BEE_MIN_AMOUNT = 5
+HIVE_BEE_MAX_AMOUNT = 10
 
 
 class Ecosystem():
@@ -106,6 +109,15 @@ class Ecosystem():
                     self.plant_map[x][y] = tree
                     if random.random() <= HIVES_PER_TREE:
                         self.animal_map[x][y].append(Hive(self, x, y))
+                        bee_amount = random.randint(HIVE_BEE_MIN_AMOUNT, HIVE_BEE_MAX_AMOUNT+1)
+                        for _ in range(bee_amount):
+                            dx = random.randint(-3, 4)
+                            dy = random.randint(-3, 4)
+
+                            if x + dx < 0 or x + dx >= self.width or y + dy < 0 or y + dy >= self.height:
+                                continue
+                            bee = Bee(self, x+dx, y+dy)
+                            self.animal_map[x + dx][y + dy].append(bee)
                 elif random.random() <= GRASS_INIT_PERCENTAGE:
                     grass = Grass(self, x, y, random.randint(-80, 101), None, self.get_initial_water_level(x,y))
                     self.plant_map[x][y] = grass
