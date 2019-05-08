@@ -46,13 +46,28 @@ class Rabbit(organisms.Organism):
         self._thirst = thirst
         self._tired = tired
         self._health = health
-        self.size = size
         self._life_span = life_span
         self._age = age
         self._hunger_speed = hunger_speed
         self._thirst_speed = thirst_speed
         self._tired_speed = tired_speed
-        self._vision_range = vision_range
+
+        if self._adult:
+            self.size = size
+            self._max_size = size
+            self._vision_range = vision_range
+            self._max_vision_range = vision_range
+        else:
+            self.size = 1
+            self._max_size = size
+            self._vision_range = {
+                'left': 0,
+                'right': 0,
+                'up': 0,
+                'down': 0
+            }
+            self._max_vision_range = vision_range
+
 
         # TODO:
         #     * Genetic variables
@@ -70,8 +85,14 @@ class Rabbit(organisms.Organism):
         self._asleep = False
         self._sleep_time = 0
 
-        self._movement_cooldown = movement_cooldown
-        self._movement_timer = 3
+        if self._adult:
+            self._movement_cooldown = movement_cooldown
+            self._min_movement_cooldown = movement_cooldown
+        else:
+            self._movement_cooldown = 2 * movement_cooldown
+            self._min_movement_cooldown = movement_cooldown
+
+        self._movement_timer = self._movement_cooldown
         self._movement_path = None
 
 
@@ -362,13 +383,24 @@ class Rabbit(organisms.Organism):
             self.__outer = outer
 
         def action(self):
-            age = self.__outer._age
             self.__outer._age += 1
 
             # Become adults
-            if age < 24*365 and self.__outer._age >= 24*365:
+            if not self.__outer._adult and self.__outer._age >= 24*365:
                 self.__outer._adult = True
                 self.__outer.can_reproduce = True
+                self.__outer.size = self.__outer._max_size
+                self.__outer._vision_range = self.__outer._max_vision_range
+                self.__outer._movement_cooldown = self.__outer._min_movement_cooldown
+
+            # Lerp values depending on age
+            if not self.__outer._adult:
+                self.__outer.size = helpers.Lerp(0, self.__outer._max_size, self.__outer._age / (24 * 365))
+                for key in self.__outer._vision_range:
+                    self.__outer._vision_range[key] = min(self.__outer._max_vision_range[key], helpers.Lerp(0, self.__outer._max_vision_range[key], self.__outer._age / (24 * 30)))
+                self.__outer._movement_cooldown = helpers.Lerp(2 * self.__outer._min_movement_cooldown, self.__outer._min_movement_cooldown, self.__outer._age / (24 * 365))
+
+
             self._status = bt.Status.SUCCESS
 
     class TakeDamage(bt.Action):
@@ -408,7 +440,7 @@ class Rabbit(organisms.Organism):
             thirst = self.__outer._thirst
             tired = self.__outer._tired
 
-            if hunger < HUNGER_SEEK_THRESHOLD and thirst < THIRST_SEEK_THRESHOLD and tired < TIRED_SEEK_THRESHOLD:
+            if hunger < HUNGER_SEEK_THRESHOLD and thirst < THIRST_SEEK_THRESHOLD and tired < TIRED_SEEK_THRESHOLD and self.__outer._health > 0:
                 self.__outer._health += HEAL_AMOUNT
 
     ############
@@ -562,8 +594,8 @@ class Rabbit(organisms.Organism):
             vision_range = self.__outer._vision_range
             ecosystem = self.__outer._ecosystem
 
-            for dx in range(-vision_range['left'], vision_range['right']+1):
-                for dy in range(-vision_range['up'], vision_range['down']+1):
+            for dx in range(-int(vision_range['left']), int(vision_range['right'])+1):
+                for dy in range(-int(vision_range['up']), int(vision_range['down'])+1):
                     if x + dx < 0 or x + dx >= ecosystem.width or y + dy < 0 or y + dy >= ecosystem.height:
                         continue
 
@@ -596,8 +628,8 @@ class Rabbit(organisms.Organism):
 
             if find_closest:
                 # Just find the closest food, picking flowers over grass if they are the same distance
-                for dx in range(-vision_range['left'], vision_range['right']+1):
-                    for dy in range(-vision_range['up'], vision_range['down']+1):
+                for dx in range(-int(vision_range['left']), int(vision_range['right'])+1):
+                    for dy in range(-int(vision_range['up']), int(vision_range['down'])+1):
                         if x + dx < 0 or x + dx >= ecosystem.width or y + dy < 0 or y + dy >= ecosystem.height:
                             continue
 
@@ -612,8 +644,8 @@ class Rabbit(organisms.Organism):
             else:
                 # Pick the closest flower if they exist, otherwise pick the closest
                 # grass patch with much grass if it exists, otherwise pick the closest grass patch
-                for dx in range(-vision_range['left'], vision_range['right']+1):
-                    for dy in range(-vision_range['up'], vision_range['down']+1):
+                for dx in range(-int(vision_range['left']), int(vision_range['right'])+1):
+                    for dy in range(-int(vision_range['up']), int(vision_range['down'])+1):
                         if x + dx < 0 or x + dx >= ecosystem.width or y + dy < 0 or y + dy >= ecosystem.height:
                             continue
 
@@ -895,8 +927,8 @@ class Rabbit(organisms.Organism):
             vision_range = self.__outer._vision_range
             ecosystem = self.__outer._ecosystem
 
-            for dx in range(-vision_range['left'], vision_range['right']+1):
-                for dy in range(-vision_range['up'], vision_range['down']+1):
+            for dx in range(-int(vision_range['left']), int(vision_range['right'])+1):
+                for dy in range(-int(vision_range['up']), int(vision_range['down'])+1):
                     if x + dx < 0 or x + dx >= ecosystem.width or y + dy < 0 or y + dy >= ecosystem.height:
                         continue
 
@@ -934,8 +966,8 @@ class Rabbit(organisms.Organism):
             else:
                 closest_grass = None
                 best_distance = math.inf
-                for dx in range(-vision_range['left'], vision_range['right']+1):
-                    for dy in range(-vision_range['up'], vision_range['down']+1):
+                for dx in range(-int(vision_range['left']), int(vision_range['right'])+1):
+                    for dy in range(-int(vision_range['up']), int(vision_range['down'])+1):
                         if x + dx < 0 or x + dx >= ecosystem.width or y + dy < 0 or y + dy >= ecosystem.height:
                             continue
 
@@ -970,8 +1002,8 @@ class Rabbit(organisms.Organism):
             vision_range = self.__outer._vision_range
             ecosystem = self.__outer._ecosystem
 
-            for dx in range(-vision_range['left'], vision_range['right']+1):
-                for dy in range(-vision_range['up'], vision_range['down']+1):
+            for dx in range(-int(vision_range['left']), int(vision_range['right'])+1):
+                for dy in range(-int(vision_range['up']), int(vision_range['down'])+1):
                     if x + dx < 0 or x + dx >= ecosystem.width or y + dy < 0 or y + dy >= ecosystem.height:
                         continue
 
@@ -1159,8 +1191,8 @@ class Rabbit(organisms.Organism):
             ecosystem = self.__outer._ecosystem
             partner = self.__outer.partner
 
-            for dx in range(-vision_range['left'], vision_range['right']+1):
-                for dy in range(-vision_range['up'], vision_range['down']+1):
+            for dx in range(-int(vision_range['left']), int(vision_range['right'])+1):
+                for dy in range(-int(vision_range['up']), int(vision_range['down'])+1):
                     if x + dx < 0 or x + dx >= ecosystem.width or y + dy < 0 or y + dy >= ecosystem.height:
                         continue
 
@@ -1252,8 +1284,8 @@ class Rabbit(organisms.Organism):
             vision_range = self.__outer._vision_range
             ecosystem = self.__outer._ecosystem
 
-            for dx in range(-vision_range['left'], vision_range['right']+1):
-                for dy in range(-vision_range['up'], vision_range['down']+1):
+            for dx in range(-int(vision_range['left']), int(vision_range['right'])+1):
+                for dy in range(-int(vision_range['up']), int(vision_range['down'])+1):
                     if x + dx < 0 or x + dx >= ecosystem.width or y + dy < 0 or y + dy >= ecosystem.height:
                         continue
 
@@ -1279,8 +1311,8 @@ class Rabbit(organisms.Organism):
             closest_rabbit = None
             best_distance = math.inf
 
-            for dx in range(-vision_range['left'], vision_range['right']+1):
-                for dy in range(-vision_range['up'], vision_range['down']+1):
+            for dx in range(-int(vision_range['left']), int(vision_range['right'])+1):
+                for dy in range(-int(vision_range['up']), int(vision_range['down'])+1):
                     if x + dx < 0 or x + dx >= ecosystem.width or y + dy < 0 or y + dy >= ecosystem.height:
                         continue
 
