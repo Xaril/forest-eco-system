@@ -37,7 +37,7 @@ class Rabbit(organisms.Organism):
                  thirst=0, tired=0, health=100, size=20, life_span=24*365*5,
                  hunger_speed=50/36, thirst_speed=50/72, tired_speed=50/36,
                  vision_range={'left': 4, 'right': 4, 'up': 4, 'down': 4},
-                 burrow=None, in_burrow=False, movement_cooldown=3, age=24*365):
+                 burrow=None, in_burrow=False, movement_cooldown=3, age=0):
         super().__init__(ecosystem, organisms.Type.RABBIT, x, y)
         self.female = female
         self._adult = adult
@@ -62,6 +62,7 @@ class Rabbit(organisms.Organism):
         self.pregnant = False
         self.partner = None
         self.reproduction_timer = 0
+        self._stabilized_health = False
 
         self._burrow = burrow
         self._in_burrow = False
@@ -193,6 +194,31 @@ class Rabbit(organisms.Organism):
         # Pooping
 
         # Giving birth
+        birth_sequence = bt.Sequence()
+        logic_fallback.add_child(birth_sequence)
+        birth_sequence.add_child(self.Pregnant(self))
+
+        birth_fallback = bt.FallBack()
+        birth_sequence.add_child(birth_fallback)
+
+        birth_time_sequence = bt.Sequence()
+        birth_fallback.add_child(birth_time_sequence)
+        birth_time_sequence.add_child(self.TimeToGiveBirth(self))
+        birth_time_sequence.add_child(self.GiveBirth(self))
+
+        close_to_birth_sequence = bt.Sequence()
+        birth_fallback.add_child(close_to_birth_sequence)
+        close_to_birth_sequence.add_child(self.CloseToBirth(self))
+
+
+        close_to_birth_fallback = bt.FallBack()
+        close_to_birth_sequence.add_child(close_to_birth_fallback)
+        close_to_birth_fallback.add_child(self.InBurrow(self))
+
+        close_to_birth_burrow_sequence = bt.Sequence()
+        close_to_birth_fallback.add_child(close_to_birth_burrow_sequence)
+        close_to_birth_burrow_sequence.add_child(self.StabilizeHealth(self))
+        close_to_birth_burrow_sequence.add_child(self.CreateBurrow(self))
 
         # Reproducing
         reproduction_sequence = bt.Sequence()
@@ -298,7 +324,8 @@ class Rabbit(organisms.Organism):
 
         def action(self):
             factor = 1 if not self.__outer._asleep else EATING_AND_DRINKING_SLEEP_FACTOR
-            self.__outer._hunger += factor * self.__outer._hunger_speed
+            if not self.__outer._stabilized_health:
+                self.__outer._hunger += factor * self.__outer._hunger_speed
             self._status = bt.Status.SUCCESS
 
     class IncreaseThirst(bt.Action):
@@ -309,7 +336,8 @@ class Rabbit(organisms.Organism):
 
         def action(self):
             factor = 1 if not self.__outer._asleep else EATING_AND_DRINKING_SLEEP_FACTOR
-            self.__outer._thirst += factor * self.__outer._thirst_speed
+            if not self.__outer._stabilized_health:
+                self.__outer._thirst += factor * self.__outer._thirst_speed
             self._status = bt.Status.SUCCESS
 
     class ChangeTired(bt.Action):
@@ -320,7 +348,8 @@ class Rabbit(organisms.Organism):
 
         def action(self):
             if not self.__outer._asleep:
-                self.__outer._tired += self.__outer._tired_speed
+                if not self.__outer._stabilized_health:
+                    self.__outer._tired += self.__outer._tired_speed
             else:
                 self.__outer._tired = max(0, self.__outer._tired - TIRED_DAMAGE_THRESHOLD / SLEEP_TIME)
                 self.__outer._sleep_time += 1
@@ -479,7 +508,7 @@ class Rabbit(organisms.Organism):
             self.__outer = outer
 
         def condition(self):
-            return self.__outer._hunger >= HUNGER_SEEK_THRESHOLD
+            return not self.__outer._stabilized_health and self.__outer._hunger >= HUNGER_SEEK_THRESHOLD
 
     class FoodAdjacent(bt.Condition):
         """Check if there is food next to the rabbit."""
@@ -726,7 +755,7 @@ class Rabbit(organisms.Organism):
             self.__outer = outer
 
         def condition(self):
-            return self.__outer._thirst >= THIRST_SEEK_THRESHOLD
+            return not self.__outer._stabilized_health and self.__outer._thirst >= THIRST_SEEK_THRESHOLD
 
     class WaterAdjacent(bt.Condition):
         """Check if there is water next to the rabbit."""
@@ -820,7 +849,7 @@ class Rabbit(organisms.Organism):
             self.__outer = outer
 
         def condition(self):
-            return self.__outer._tired >= TIRED_SEEK_THRESHOLD
+            return not self.__outer._stabilized_health and self.__outer._tired >= TIRED_SEEK_THRESHOLD
 
     class InBurrowOrGrass(bt.Condition):
         """Determines if the rabbit is in its burrow or in tall grass."""
@@ -967,16 +996,92 @@ class Rabbit(organisms.Organism):
         def action(self):
             from burrow import Burrow
 
-            x = self.__outer.x
-            y = self.__outer.y
-            burrow = Burrow(self.__outer._ecosystem, x, y)
-            self.__outer._ecosystem.animal_map[x][y].insert(0, burrow)
-            self.__outer._burrow = burrow
+            if not self.__outer._in_burrow:
+                x = self.__outer.x
+                y = self.__outer.y
+                burrow = Burrow(self.__outer._ecosystem, x, y)
+                self.__outer._ecosystem.animal_map[x][y].insert(0, burrow)
+                self.__outer._burrow = burrow
 
-            # Increase hunger due to having to dig a hole
-            self.__outer._hunger += 3 * self.__outer._hunger_speed
+                # Increase hunger due to having to dig a hole
+                if not self.__outer._stabilized_health:
+                    self.__outer._hunger += 3 * self.__outer._hunger_speed
             self._status = bt.Status.SUCCESS
 
+    ################
+    # GIVING BIRTH #
+    ################
+
+    class Pregnant(bt.Condition):
+        """Determines if the rabbit is pregnant or not."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer.pregnant
+
+    class TimeToGiveBirth(bt.Condition):
+        """Determines if the time has come to give birth."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer.reproduction_timer <= REPRODUCTION_COOLDOWN
+
+    class GiveBirth(bt.Action):
+        """The rabbit gives birth."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            self.__outer._stabilized_health = False
+            self.__outer.pregnant = False
+
+            minimum_amount = 3
+            maximum_amount = 6
+
+            x = self.__outer.x
+            y = self.__outer.y
+            burrow = self.__outer._burrow
+            ecosystem = self.__outer._ecosystem
+
+            for _ in range(random.randint(minimum_amount, maximum_amount + 1)):
+                gender = random.choice([True, False])
+                rabbit = Rabbit(ecosystem, x, y, gender, burrow=burrow, in_burrow=True)
+                ecosystem.animal_map[x][y].append(rabbit)
+
+            self._status = bt.Status.SUCCESS
+
+    class CloseToBirth(bt.Condition):
+        """Determines if the rabbit is about to give birth."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer.reproduction_timer <= REPRODUCTION_COOLDOWN + 24*2 # Two days prior to giving birth
+
+    class InBurrow(bt.Condition):
+        """Determines if the rabbit is in its burrow."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer._in_burrow
+
+    class StabilizeHealth(bt.Action):
+        """Stabilizes the rabbit's health for the remainder of the pregnancy."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            self.__outer._stabilized_health = True
+            self._status = bt.Status.SUCCESS
 
     ################
     # REPRODUCTION #
