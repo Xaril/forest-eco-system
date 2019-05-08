@@ -10,6 +10,7 @@ from hive import Hive
 from water import Water
 from weather import Weather
 from helpers import Direction, EuclidianDistance, InverseLerp
+import constants
 
 
 TREE_PERCENTAGE = 0.1
@@ -59,6 +60,12 @@ class Ecosystem():
             self.animal_map.append([])
             for y in range(self.height):
                 self.animal_map[x].append([])
+
+        self.nectar_smell_map = []
+        for x in range(self.width):
+            self.nectar_smell_map.append([])
+            for y in range(self.height):
+                self.nectar_smell_map[x].append(0)
 
         self.weather = Weather(self)
 
@@ -112,13 +119,8 @@ class Ecosystem():
                         self.animal_map[x][y].append(hive)
                         bee_amount = random.randint(HIVE_BEE_MIN_AMOUNT, HIVE_BEE_MAX_AMOUNT+1)
                         for _ in range(bee_amount):
-                            dx = random.randint(-3, 4)
-                            dy = random.randint(-3, 4)
-
-                            if x + dx < 0 or x + dx >= self.width or y + dy < 0 or y + dy >= self.height:
-                                continue
-                            bee = Bee(self, x+dx, y+dy, hive=hive)
-                            self.animal_map[x + dx][y + dy].append(bee)
+                            bee = Bee(self, x, y, hive=hive)
+                            self.animal_map[x][y].append(bee)
                 elif random.random() <= GRASS_INIT_PERCENTAGE:
                     grass = Grass(self, x, y, random.randint(-80, 101), None, self.get_initial_water_level(x,y))
                     self.plant_map[x][y] = grass
@@ -207,12 +209,16 @@ class Ecosystem():
 
         return INITAL_WATER_MAX_AMOUNT * (1 - InverseLerp(0, max_possible_distance, closest_lake_distance))
 
+    def update_nectar_smell_map(self):
+        return 0
+
 
     def run(self):
         """Run the behaviour of all organisms for one time step."""
         organisms = self.get_organisms_from_maps()
 
         self.weather.simulate_weather()
+        self.update_nectar_smell_map()
 
         for organism in organisms:
             organism.run()

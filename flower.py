@@ -1,5 +1,6 @@
 import organisms
 import behaviour_tree as bt
+import constants
 from helpers import Lerp, InverseLerp
 
 REPRODUCTION_THRESHOLD = 60 # Amout of flower needed to be able to reproduce
@@ -79,7 +80,7 @@ class Flower(organisms.Organism):
         def action(self):
             x = self.__outer.x
             y = self.__outer.y
-            self.__outer._ecosystem.flower_map[x][y].remove(self.__outer) 
+            self.__outer._ecosystem.flower_map[x][y].remove(self.__outer)
             self._status = bt.Status.SUCCESS
 
 
@@ -137,4 +138,17 @@ class Flower(organisms.Organism):
             y = self.__outer.y
             self.__outer.nectar = min(self.__outer._amount * MAX_NECTAR_AMOUNT_MULTIPLIER, self.__outer.nectar + NECTAR_PRODUCTION_SPEED)
             self.__outer._ecosystem.plant_map[x][y].water_amount = max(0, self.__outer._ecosystem.plant_map[x][y].water_amount - NECTAR_WATER_USAGE)
+            """
+            self.__outer._ecosystem.nectar_smell_map[x][y] = self.__outer.nectar
+            wind_direction, wind_speed = self.__outer._ecosystem.weather.get_wind_velocity()
+            for i in range(0, wind_speed):
+                new_x = x + (wind_direction.value[0] * i)
+                new_y = y + (wind_direction.value[1] * i)
+
+                # check if in bounds
+                if new_x < 0 or new_x >= self.__outer._ecosystem.width or new_y < 0 or new_y >= self.__outer._ecosystem.height:
+                    break
+
+                self.__outer._ecosystem.nectar_smell_map[x][y] = min(constants.MAX_NECTAR_SMELL, self.__outer.nectar * 0.1 / (i + 1))
+            """
             self._status = bt.Status.SUCCESS

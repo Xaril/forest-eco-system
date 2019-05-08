@@ -168,7 +168,7 @@ class Grass(organisms.Organism):
 
                 # check if in bounds
                 if x < 0 or x >= self.__outer._ecosystem.width or y < 0 or y >= self.__outer._ecosystem.height:
-                    continue
+                    break
                 # if cell is empty or earth plant a seed
                 cell = self.__outer._ecosystem.plant_map[x][y]
                 if cell and cell.type == organisms.Type.EARTH and cell.water_amount > 0:

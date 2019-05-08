@@ -8,8 +8,9 @@ class Bee(organisms.Organism):
     def __init__(self, ecosystem, x, y, hunger=0, tired=0, health=100, life_span=24*150,
                 hunger_speed=50/36, tired_speed=50/36,
                 vision_range={'left': 4, 'right': 4, 'up': 4, 'down': 4},
-                hive=None, in_hive=False, movement_cooldown=4, age=0):
+                hive=None, in_hive=False, movement_cooldown=4, age=0, scout=False):
         super().__init__(ecosystem, organisms.Type.BEE, x, y)
+
         self.size = 0
 
         self._hunger = hunger
@@ -18,14 +19,18 @@ class Bee(organisms.Organism):
         self._life_span = life_span
         self._hunger_speed = hunger_speed
         self._tired_speed = tired_speed
-        self._vision_range = vision_range
         self._hive = hive
         self.in_hive = in_hive
         self._movement_cooldown = movement_cooldown
         self._age = age
 
         self._movement_timer = self._movement_cooldown
-        self._movement_path = None
+        self._target_location = (0,0)
+
+        self._scout = scout
+        self._vision_range = vision_range
+        if scout:
+            self._vision_range = {'left': 8, 'right': 8, 'up': 8, 'down': 8}
 
     def get_image(self):
         return 'images/Bee.png'
@@ -41,12 +46,10 @@ class Bee(organisms.Organism):
         sequence = bt.Sequence()
         logic_fallback = bt.FallBack()
 
-        moving_randomly_sequence = bt.Sequence()
-        moving_randomly_sequence.add_child(self.CanMove(self))
-        moving_randomly_sequence.add_child(self.MoveRandomly(self))
-        logic_fallback.add_child(moving_randomly_sequence)
 
         sequence.add_child(self.ReduceMovementTimer(self))
+        sequence.add_child(self.IncreaseAge(self))
+        sequence.add_child(self.FlyToTargetLocation(self))
         sequence.add_child(logic_fallback)
 
         tree.add_child(is_dead_sequence)
@@ -92,43 +95,102 @@ class Bee(organisms.Organism):
             self._status = bt.Status.SUCCESS
 
 
+    class IncreaseAge(bt.Action):
+        """Ticks down the movement timer for the rabbit."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
 
+        def action(self):
+            # TODO: change size according to age
+            self.__outer._age += 1
+            self._status = bt.Status.SUCCESS
+
+
+    #####################
+    # SCOUT BEES #
+    #####################
+
+
+    class IsScout(bt.Condition):
+        """Checks if the bee is a scout."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer._scout
+
+    class ShouldScoutForFood(bt.Condition):
+        """Checks if the bee should scout."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return True
+
+    class KnowWhereFoodIs(bt.Condition):
+        """Checks if the bee scout knows where the food is."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return False
+
+
+    class InHive(bt.Condition):
+        """Checks if the bee is in hive"""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer.in_hive
+
+    class ScoutForFood(bt.Action):
+        """Ticks down the movement timer for the rabbit."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            self.__outer._movement_timer = max(0, self.__outer._movement_timer - 1)
+            self._status = bt.Status.SUCCESS
+
+    class FlyToTargetLocation(bt.Action):
+        """Ticks down the movement timer for the rabbit."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            target_location = self.__outer._target_location
+            if random.random() <= 0.5:
+                random_dir = random.choice(list(helpers.Direction))
+                dx = random_dir.value[0]
+                dy = random_dir.value[1]
+            else:
+                dx, dy = helpers.DirectionBetweenPoints(x, y, target_location[0], target_location[1])
+
+            if x + dx < 0 or x + dx >= self.__outer._ecosystem.width or y + dy < 0 or y + dy >= self.__outer._ecosystem.height:
+                self._status = bt.Status.FAIL
+            else:
+                self.__outer._movement_timer += self.__outer._movement_cooldown
+                self.__outer._ecosystem.animal_map[x][y].remove(self.__outer)
+                self.__outer.x += dx
+                self.__outer.y += dy
+                self.__outer._ecosystem.animal_map[x + dx][y + dy].append(self.__outer)
+                self._status = bt.Status.SUCCESS
 
     class CanMove(bt.Condition):
-        """Check if the rabbit can move."""
+        """Checks if the bee can move."""
         def __init__(self, outer):
             super().__init__()
             self.__outer = outer
 
         def condition(self):
             return self.__outer._movement_timer == 0
-
-
-
-    ###################
-    # RANDOM MOVEMENT #
-    ###################
-
-    class MoveRandomly(bt.Action):
-        """Moves the bee randomly."""
-        def __init__(self, outer):
-            super().__init__()
-            self.__outer = outer
-
-        def action(self):
-            # TODO: Make excessive movement result in size decrease
-            x = self.__outer.x
-            y = self.__outer.y
-            direction = random.choice(list(helpers.Direction))
-            dx = direction.value[0]
-            dy = direction.value[1]
-
-            if x + dx < 0 or x + dx >= self.__outer._ecosystem.width or y + dy < 0 or y + dy >= self.__outer._ecosystem.height:
-                self._status = bt.Status.FAIL
-            else:
-                self._status = bt.Status.SUCCESS
-                self.__outer._movement_timer += self.__outer._movement_cooldown
-                self.__outer._ecosystem.animal_map[x][y].remove(self.__outer)
-                self.__outer.x += dx
-                self.__outer.y += dy
-                self.__outer._ecosystem.animal_map[x + dx][y + dy].append(self.__outer)
