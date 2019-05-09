@@ -65,8 +65,8 @@ class Hive(organisms.Organism):
             x = self.__outer.x
             y = self.__outer.y
             self.__outer._ecosystem.animal_map[x][y].remove(self.__outer)
-            for animals in self.__outer._ecosystem.animal_map[x][y]:
-                if animal.type == organism.Type.Bee:
+            for animal in self.__outer._ecosystem.animal_map[x][y]:
+                if animal.type == organism.Type.BEE:
                     animal.in_hive = False
                     animal.hive = None
             self._status = bt.Status.SUCCESS

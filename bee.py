@@ -111,6 +111,39 @@ class Bee(organisms.Organism):
 
         # Recruit
 
+        recruit_sequence.add_child(self.IsRecruit(self))
+        recruit_fallback = bt.FallBack()
+        recruit_sequence.add_child(recruit_fallback)
+
+        ## Collect nectar
+        on_food_target_sequence = bt.Sequence()
+        on_food_target_sequence.add_child(self.IsOnFoodTargetLocation(self))
+        on_food_target_fallback = bt.FallBack()
+        on_food_target_sequence.add_child(on_food_target_fallback)
+        location_have_nectar_sequence = bt.Sequence()
+        on_food_target_fallback.add_child(location_have_nectar_sequence)
+        location_have_nectar_sequence.add_child(self.HaveTargetLocationNectar(self))
+        location_have_nectar_sequence.add_child(self.TakeNectar(self))
+        on_food_target_fallback.add_child(self.RemoveFoodTargetLocation(self))
+        recruit_fallback.add_child(on_food_target_sequence)
+
+        ## Have nectar
+
+        have_nectar_sequence = bt.Sequence()
+        have_nectar_sequence.add_child(self.HaveFood(self))
+        have_nectar_fallback = bt.FallBack()
+        recruit_in_hive_sequence = bt.Sequence()
+        have_nectar_fallback.add_child(recruit_in_hive_sequence)
+        recruit_in_hive_sequence.add_child(self.InHive(self))
+        recruit_in_hive_sequence.add_child(self.LeaveFoodInHive(self))
+        move_to_hive_sequence = bt.Sequence()
+        move_to_hive_sequence.add_child(self.SetHiveTargetLocation(self))
+        move_to_hive_sequence.add_child(self.CanMove(self))
+        move_to_hive_sequence.add_child(self.FlyToTargetLocation(self))
+        have_nectar_fallback.add_child(move_to_hive_sequence)
+        recruit_fallback.add_child(have_nectar_sequence)
+
+
 
 
 
@@ -244,6 +277,16 @@ class Bee(organisms.Organism):
             self._status = bt.Status.SUCCESS
 
 
+    class IsRecruit(bt.Condition):
+        """Checks if the bee is a recruit."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return not self.__outer._scout
+
+
     class HaveFood(bt.Condition):
         def __init__(self, outer):
             super().__init__()
@@ -257,7 +300,7 @@ class Bee(organisms.Organism):
             super().__init__()
             self.__outer = outer
 
-        def condition(self):
+        def action(self):
             self.__outer._hive.food += self.__outer._nectar_amount
             self.__outer._nectar_amount = 0
             self._status = bt.Status.SUCCESS
@@ -304,7 +347,7 @@ class Bee(organisms.Organism):
             super().__init__()
             self.__outer = outer
 
-        def condition(self):
+        def action(self):
             flower = self.__outer._flower_to_harvest
             self.__outer._nectar_amount = self.__outer._nectar_capacity
             flower.nectar -= self.__outer._nectar_capacity
@@ -315,7 +358,7 @@ class Bee(organisms.Organism):
             super().__init__()
             self.__outer = outer
 
-        def condition(self):
+        def action(self):
             self.__outer._flower_to_harvest = None
             self.__outer._food_location = None
             self._status = bt.Status.SUCCESS
