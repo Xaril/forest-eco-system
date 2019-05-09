@@ -27,7 +27,7 @@ class Game(arcade.Window):
         """ Render the screen. """
         arcade.start_render()
         self.sprite_list.draw()
-
+        arcade.finish_render()
 
     def update(self, delta_time):
         """ All the logic to move, and the game logic goes here. """

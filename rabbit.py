@@ -29,6 +29,8 @@ HEAL_AMOUNT = 4
 
 REPRODUCTION_TIME = 24*30 # Rabbits are pregnant for 30 days
 REPRODUCTION_COOLDOWN = 24*5 # Rabbits usually have to wait 5 days before being able to reproduce again
+NEW_BORN_TIME = 24*30
+NURSE_COOLDOWN = 24
 
 
 class Rabbit(organisms.Organism):
@@ -47,7 +49,7 @@ class Rabbit(organisms.Organism):
         self._tired = tired
         self._health = health
         self._life_span = life_span
-        self._age = age
+        self.age = age
         self._hunger_speed = hunger_speed
         self._thirst_speed = thirst_speed
         self._tired_speed = tired_speed
@@ -78,6 +80,8 @@ class Rabbit(organisms.Organism):
         self.partner = None
         self.reproduction_timer = 0
         self._stabilized_health = False
+        self._nurse_timer = 0
+        self._stop_nursing_timer = 0
 
         self._burrow = burrow
         self._in_burrow = False
@@ -112,12 +116,23 @@ class Rabbit(organisms.Organism):
         tree.add_child(self.IncreaseHunger(self))
         tree.add_child(self.IncreaseThirst(self))
         tree.add_child(self.ChangeTired(self))
+        tree.add_child(self.HandleNursing(self))
         tree.add_child(self.IncreaseAge(self))
         tree.add_child(self.TakeDamage(self))
         tree.add_child(self.ReplenishHealth(self))
 
         logic_fallback = bt.FallBack()
         tree.add_child(logic_fallback)
+
+        # Dying
+        die_sequence = bt.Sequence()
+        logic_fallback.add_child(die_sequence)
+        die_sequence.add_child(self.Dying(self))
+        die_sequence.add_child(self.Die(self))
+
+        # New born
+        logic_fallback.add_child(self.NewBorn(self))
+
         # Sleeping
         sleep_sequence = bt.Sequence()
         logic_fallback.add_child(sleep_sequence)
@@ -127,12 +142,6 @@ class Rabbit(organisms.Organism):
         sleep_sequence.add_child(sleep_fallback)
         sleep_fallback.add_child(self.ShouldNotWakeUp(self))
         sleep_fallback.add_child(self.WakeUp(self))
-
-        # Dying
-        die_sequence = bt.Sequence()
-        logic_fallback.add_child(die_sequence)
-        die_sequence.add_child(self.Dying(self))
-        die_sequence.add_child(self.Die(self))
 
         # Avoiding enemies
 
@@ -213,6 +222,25 @@ class Rabbit(organisms.Organism):
         create_burrow_sequence.add_child(self.Sleep(self))
 
         # Pooping
+
+        # Nursing
+        nurse_sequence = bt.Sequence()
+        logic_fallback.add_child(nurse_sequence)
+        nurse_sequence.add_child(self.ShouldNurse(self))
+
+        nurse_fallback = bt.FallBack()
+        nurse_sequence.add_child(nurse_fallback)
+
+        burrow_nurse_sequence = bt.Sequence()
+        nurse_fallback.add_child(burrow_nurse_sequence)
+        burrow_nurse_sequence.add_child(self.InBurrow(self))
+        burrow_nurse_sequence.add_child(self.Nurse(self))
+
+        move_to_burrow_nurse_sequence = bt.Sequence()
+        nurse_fallback.add_child(move_to_burrow_nurse_sequence)
+        move_to_burrow_nurse_sequence.add_child(self.CanMove(self))
+        move_to_burrow_nurse_sequence.add_child(self.FindPathToBurrow(self))
+        move_to_burrow_nurse_sequence.add_child(self.MoveOnPath(self))
 
         # Giving birth
         birth_sequence = bt.Sequence()
@@ -376,6 +404,19 @@ class Rabbit(organisms.Organism):
                 self.__outer._sleep_time += 1
             self._status = bt.Status.SUCCESS
 
+    class HandleNursing(bt.Action):
+        """Handles nursing variables."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            if self.__outer.female:
+                if self.__outer._stop_nursing_timer > 0:
+                    self.__outer._stop_nursing_timer = max(0, self.__outer._stop_nursing_timer - 1)
+                    self.__outer._nurse_timer = max(0, self.__outer._nurse_timer - 1)
+            self._status = bt.Status.SUCCESS
+
     class IncreaseAge(bt.Action):
         """Increases the rabbit's age."""
         def __init__(self, outer):
@@ -383,10 +424,10 @@ class Rabbit(organisms.Organism):
             self.__outer = outer
 
         def action(self):
-            self.__outer._age += 1
+            self.__outer.age += 1
 
             # Become adults
-            if not self.__outer._adult and self.__outer._age >= 24*365:
+            if not self.__outer._adult and self.__outer.age >= 24*365:
                 self.__outer._adult = True
                 self.__outer.can_reproduce = True
                 self.__outer.size = self.__outer._max_size
@@ -395,10 +436,10 @@ class Rabbit(organisms.Organism):
 
             # Lerp values depending on age
             if not self.__outer._adult:
-                self.__outer.size = helpers.Lerp(0, self.__outer._max_size, self.__outer._age / (24 * 365))
+                self.__outer.size = helpers.Lerp(0, self.__outer._max_size, self.__outer.age / (24 * 365))
                 for key in self.__outer._vision_range:
-                    self.__outer._vision_range[key] = min(self.__outer._max_vision_range[key], helpers.Lerp(0, self.__outer._max_vision_range[key], self.__outer._age / (24 * 30)))
-                self.__outer._movement_cooldown = helpers.Lerp(2 * self.__outer._min_movement_cooldown, self.__outer._min_movement_cooldown, self.__outer._age / (24 * 365))
+                    self.__outer._vision_range[key] = min(self.__outer._max_vision_range[key], helpers.Lerp(0, self.__outer._max_vision_range[key], self.__outer.age / (24 * 30)))
+                self.__outer._movement_cooldown = helpers.Lerp(2 * self.__outer._min_movement_cooldown, self.__outer._min_movement_cooldown, self.__outer.age / (24 * 365))
 
 
             self._status = bt.Status.SUCCESS
@@ -443,6 +484,44 @@ class Rabbit(organisms.Organism):
             if hunger < HUNGER_SEEK_THRESHOLD and thirst < THIRST_SEEK_THRESHOLD and tired < TIRED_SEEK_THRESHOLD and self.__outer._health > 0:
                 self.__outer._health += HEAL_AMOUNT
 
+    #########
+    # DYING #
+    #########
+
+    class Dying(bt.Condition):
+        """Check if the rabbit is dying."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer._health <= 0 or self.__outer.age >= self.__outer._life_span
+
+    class Die(bt.Action):
+        """Kill the rabbit."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            self.__outer._ecosystem.animal_map[x][y].remove(self.__outer)
+            self._status = bt.Status.SUCCESS
+
+    ############
+    # NEW BORN #
+    ############
+
+    class NewBorn(bt.Condition):
+        """Check if the rabbit is newly born."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer.age <= NEW_BORN_TIME
+
     ############
     # SLEEPING #
     ############
@@ -471,31 +550,6 @@ class Rabbit(organisms.Organism):
         def action(self):
             self.__outer._asleep = False
             self.__outer._sleep_time = 0
-            self._status = bt.Status.SUCCESS
-
-    #########
-    # DYING #
-    #########
-
-    class Dying(bt.Condition):
-        """Check if the rabbit is dying."""
-        def __init__(self, outer):
-            super().__init__()
-            self.__outer = outer
-
-        def condition(self):
-            return self.__outer._health <= 0 or self.__outer._age >= self.__outer._life_span
-
-    class Die(bt.Action):
-        """Kill the rabbit."""
-        def __init__(self, outer):
-            super().__init__()
-            self.__outer = outer
-
-        def action(self):
-            x = self.__outer.x
-            y = self.__outer.y
-            self.__outer._ecosystem.animal_map[x][y].remove(self.__outer)
             self._status = bt.Status.SUCCESS
 
     ###########
@@ -1040,6 +1094,73 @@ class Rabbit(organisms.Organism):
                     self.__outer._hunger += 3 * self.__outer._hunger_speed
             self._status = bt.Status.SUCCESS
 
+    ###########
+    # NURSING #
+    ###########
+
+    class ShouldNurse(bt.Condition):
+        """Determines if the rabbit should nurse its children or not."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            burrow = self.__outer._burrow
+
+            # Should nurse if the time it takes to reach burrow is what's left
+            # on the timer.
+            distance = helpers.EuclidianDistance(x, y, burrow.x, burrow.y)
+            nurse_timer = self.__outer._nurse_timer
+            return distance >= nurse_timer
+
+    class Nurse(bt.Action):
+        """The rabbit nurses its children."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            ecosystem = self.__outer._ecosystem
+
+            self.__outer._nurse_timer = NURSE_COOLDOWN
+
+            print('Nursing children!')
+            for animal in ecosystem.animal_map[x][y]:
+                if animal.type == organisms.Type.RABBIT and animal.age <= NEW_BORN_TIME:
+                    animal._hunger = 0
+                    animal._thirst = 0
+                    animal._tired = 0
+
+            self._status = bt.Status.SUCCESS
+
+    class FindPathToBurrow(bt.Action):
+        """Finds a path to the rabbit's burrow."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            burrow = self.__outer._burrow
+            vision_range = self.__outer._vision_range
+            ecosystem = self.__outer._ecosystem
+
+            path = astar(self.__outer, ecosystem.water_map, ecosystem.plant_map, ecosystem.animal_map,
+                         x, y, burrow.x, burrow.y, max_path_length=10)
+
+            if len(path) > 0:
+                path.pop(0)
+                self.__outer._movement_path = path
+                self._status = bt.Status.SUCCESS
+            else:
+                self.__outer._movement_path = None
+                self._status = bt.Status.FAIL
+
     ################
     # GIVING BIRTH #
     ################
@@ -1071,6 +1192,8 @@ class Rabbit(organisms.Organism):
         def action(self):
             self.__outer._stabilized_health = False
             self.__outer.pregnant = False
+            self.__outer._stop_nursing_timer = NEW_BORN_TIME
+            self.__outer._nurse_timer = 0
 
             minimum_amount = 3
             maximum_amount = 6
