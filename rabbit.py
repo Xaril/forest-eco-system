@@ -89,8 +89,8 @@ class Rabbit(organisms.Organism):
         self._nurse_timer = 0
         self._stop_nursing_timer = 0
 
-        self._burrow = burrow
-        self._in_burrow = False
+        self.burrow = burrow
+        self.in_burrow = False
 
         self._asleep = False
         self._sleep_time = 0
@@ -370,9 +370,12 @@ class Rabbit(organisms.Organism):
         def action(self):
             x = self.__outer.x
             y = self.__outer.y
-            burrow = self.__outer._burrow
+            burrow = self.__outer.burrow
 
-            self.__outer._in_burrow = (x == burrow.x and y == burrow.y)
+            if burrow is None:
+                self.__outer.in_burrow = False
+            else:
+                self.__outer.in_burrow = (x == burrow.x and y == burrow.y)
             self._status = bt.Status.SUCCESS
 
     class IncreaseHunger(bt.Action):
@@ -823,41 +826,45 @@ class Rabbit(organisms.Organism):
         def action(self):
             x = self.__outer.x
             y = self.__outer.y
-            burrow_x = self.__outer._burrow.x
-            burrow_y = self.__outer._burrow.y
+            burrow = self.__outer.burrow
 
-            distance = helpers.EuclidianDistance(x, y, burrow_x, burrow_y)
+            distance = 0
+            if burrow is not None:
+                burrow_x = self.__outer.burrow.x
+                burrow_y = self.__outer.burrow.y
 
-            dx = 0
-            dy = 0
-            if distance == 0:
-                dx = random.randint(-1, 2)
-                dy = random.randint(-1, 2)
+                distance = helpers.EuclidianDistance(x, y, burrow_x, burrow_y)
             else:
-                dx = round((x - burrow_x) / distance)
-                dy = round((y - burrow_y) / distance)
+                dx = 0
+                dy = 0
+                if distance == 0:
+                    dx = random.randint(-1, 2)
+                    dy = random.randint(-1, 2)
+                else:
+                    dx = round((x - burrow_x) / distance)
+                    dy = round((y - burrow_y) / distance)
 
-            if x + dx < 0 or x + dx >= self.__outer._ecosystem.width or y + dy < 0 or y + dy >= self.__outer._ecosystem.height:
-                self._status = bt.Status.FAIL
-            elif self.__outer._ecosystem.water_map[x + dx][y + dy]:
-                self._status = bt.Status.FAIL
-            elif self.__outer._ecosystem.animal_map[x + dx][y + dy]:
-                occupied_space = 0
-                if self.__outer._ecosystem.plant_map[x + dx][y + dy] and self.__outer._ecosystem.plant_map[x + dx][y + dy].type == organisms.Type.TREE:
-                    occupied_space += 50
-                for animal in self.__outer._ecosystem.animal_map[x + dx][y + dy]:
-                    occupied_space += animal.size
-                from ecosystem import ANIMAL_CELL_CAPACITY
-                if occupied_space + self.__outer.size > ANIMAL_CELL_CAPACITY:
+                if x + dx < 0 or x + dx >= self.__outer._ecosystem.width or y + dy < 0 or y + dy >= self.__outer._ecosystem.height:
                     self._status = bt.Status.FAIL
-            else:
-                self._status = bt.Status.SUCCESS
-                self.__outer._movement_timer += self.__outer._movement_cooldown
-                ecosystem = self.__outer._ecosystem
-                index = ecosystem.animal_map[x][y].index(self.__outer)
-                ecosystem.animal_map[x + dx][y + dy].append(ecosystem.animal_map[x][y].pop(index))
-                self.__outer.x += dx
-                self.__outer.y += dy
+                elif self.__outer._ecosystem.water_map[x + dx][y + dy]:
+                    self._status = bt.Status.FAIL
+                elif self.__outer._ecosystem.animal_map[x + dx][y + dy]:
+                    occupied_space = 0
+                    if self.__outer._ecosystem.plant_map[x + dx][y + dy] and self.__outer._ecosystem.plant_map[x + dx][y + dy].type == organisms.Type.TREE:
+                        occupied_space += 50
+                    for animal in self.__outer._ecosystem.animal_map[x + dx][y + dy]:
+                        occupied_space += animal.size
+                    from ecosystem import ANIMAL_CELL_CAPACITY
+                    if occupied_space + self.__outer.size > ANIMAL_CELL_CAPACITY:
+                        self._status = bt.Status.FAIL
+                else:
+                    self._status = bt.Status.SUCCESS
+                    self.__outer._movement_timer += self.__outer._movement_cooldown
+                    ecosystem = self.__outer._ecosystem
+                    index = ecosystem.animal_map[x][y].index(self.__outer)
+                    ecosystem.animal_map[x + dx][y + dy].append(ecosystem.animal_map[x][y].pop(index))
+                    self.__outer.x += dx
+                    self.__outer.y += dy
 
     ##########
     # THIRST #
@@ -984,11 +991,13 @@ class Rabbit(organisms.Organism):
         def condition(self):
             x = self.__outer.x
             y = self.__outer.y
-            burrow = self.__outer._burrow
+            burrow = self.__outer.burrow
+
             ecosystem = self.__outer._ecosystem
 
-            if x == burrow.x and y == burrow.y:
-                return True
+            if burrow is not None:
+                if x == burrow.x and y == burrow.y:
+                    return True
             if ecosystem.plant_map[x][y] and ecosystem.plant_map[x][y].type == organisms.Type.GRASS:
                 if ecosystem.plant_map[x][y].amount >= MUCH_GRASS:
                     return True
@@ -1015,7 +1024,7 @@ class Rabbit(organisms.Organism):
         def condition(self):
             x = self.__outer.x
             y = self.__outer.y
-            burrow = self.__outer._burrow
+            burrow = self.__outer.burrow
             vision_range = self.__outer._vision_range
             ecosystem = self.__outer._ecosystem
 
@@ -1028,11 +1037,12 @@ class Rabbit(organisms.Organism):
                         if ecosystem.plant_map[x + dx][y + dy].amount >= MUCH_GRASS:
                             return True
 
-            burrow_distance = helpers.EuclidianDistance(x, y, burrow.x, burrow.y)
-            safe_distance = round((TIRED_DAMAGE_THRESHOLD + 0.5 * (TIRED_DAMAGE_THRESHOLD - TIRED_SEEK_THRESHOLD) - self.__outer._tired) / self.__outer._tired_speed)
+            if burrow is not None:
+                burrow_distance = helpers.EuclidianDistance(x, y, burrow.x, burrow.y)
+                safe_distance = round((TIRED_DAMAGE_THRESHOLD + 0.5 * (TIRED_DAMAGE_THRESHOLD - TIRED_SEEK_THRESHOLD) - self.__outer._tired) / self.__outer._tired_speed)
 
-            if burrow_distance <= safe_distance:
-                return True
+                if burrow_distance <= safe_distance:
+                    return True
 
             return False
 
@@ -1046,11 +1056,13 @@ class Rabbit(organisms.Organism):
         def action(self):
             x = self.__outer.x
             y = self.__outer.y
-            burrow = self.__outer._burrow
+            burrow = self.__outer.burrow
             vision_range = self.__outer._vision_range
             ecosystem = self.__outer._ecosystem
 
-            burrow_distance = helpers.EuclidianDistance(x, y, burrow.x, burrow.y)
+            burrow_distance = math.inf
+            if burrow is not None:
+                burrow_distance = helpers.EuclidianDistance(x, y, burrow.x, burrow.y)
             safe_distance = round((TIRED_DAMAGE_THRESHOLD + 0.5 * (TIRED_DAMAGE_THRESHOLD - TIRED_SEEK_THRESHOLD) - self.__outer._tired) / self.__outer._tired_speed)
             if burrow_distance <= safe_distance:
                 path = astar(self.__outer, ecosystem.water_map, ecosystem.plant_map, ecosystem.animal_map,
@@ -1090,7 +1102,7 @@ class Rabbit(organisms.Organism):
         def condition(self):
             x = self.__outer.x
             y = self.__outer.y
-            burrow = self.__outer._burrow
+            burrow = self.__outer.burrow
             vision_range = self.__outer._vision_range
             ecosystem = self.__outer._ecosystem
 
@@ -1103,11 +1115,12 @@ class Rabbit(organisms.Organism):
                         if ecosystem.plant_map[x + dx][y + dy].amount >= MUCH_GRASS:
                             return False
 
-            burrow_distance = helpers.EuclidianDistance(x, y, burrow.x, burrow.y)
-            safe_distance = round((TIRED_DAMAGE_THRESHOLD + 0.5 * (TIRED_DAMAGE_THRESHOLD - TIRED_SEEK_THRESHOLD) - self.__outer._tired) / self.__outer._tired_speed)
+            if burrow is not None:
+                burrow_distance = helpers.EuclidianDistance(x, y, burrow.x, burrow.y)
+                safe_distance = round((TIRED_DAMAGE_THRESHOLD + 0.5 * (TIRED_DAMAGE_THRESHOLD - TIRED_SEEK_THRESHOLD) - self.__outer._tired) / self.__outer._tired_speed)
 
-            if burrow_distance <= safe_distance:
-                return False
+                if burrow_distance <= safe_distance:
+                    return False
 
             return True
 
@@ -1120,12 +1133,12 @@ class Rabbit(organisms.Organism):
         def action(self):
             from burrow import Burrow
 
-            if not self.__outer._in_burrow:
+            if not self.__outer.in_burrow:
                 x = self.__outer.x
                 y = self.__outer.y
                 burrow = Burrow(self.__outer._ecosystem, x, y)
                 self.__outer._ecosystem.animal_map[x][y].insert(0, burrow)
-                self.__outer._burrow = burrow
+                self.__outer.burrow = burrow
 
                 # Increase hunger due to having to dig a hole
                 if not self.__outer._stabilized_health:
@@ -1185,13 +1198,16 @@ class Rabbit(organisms.Organism):
         def condition(self):
             x = self.__outer.x
             y = self.__outer.y
-            burrow = self.__outer._burrow
+            burrow = self.__outer.burrow
 
-            # Should nurse if the time it takes to reach burrow is what's left
-            # on the timer.
-            distance = helpers.EuclidianDistance(x, y, burrow.x, burrow.y)
-            nurse_timer = self.__outer._nurse_timer
-            return distance >= nurse_timer
+            if burrow is not None:
+                # Should nurse if the time it takes to reach burrow is what's left
+                # on the timer.
+                distance = helpers.EuclidianDistance(x, y, burrow.x, burrow.y)
+                nurse_timer = self.__outer._nurse_timer
+                return distance >= nurse_timer
+            else:
+                return False
 
     class Nurse(bt.Action):
         """The rabbit nurses its children."""
@@ -1223,12 +1239,14 @@ class Rabbit(organisms.Organism):
         def action(self):
             x = self.__outer.x
             y = self.__outer.y
-            burrow = self.__outer._burrow
+            burrow = self.__outer.burrow
             vision_range = self.__outer._vision_range
             ecosystem = self.__outer._ecosystem
 
-            path = astar(self.__outer, ecosystem.water_map, ecosystem.plant_map, ecosystem.animal_map,
-                         x, y, burrow.x, burrow.y, max_path_length=10)
+            path = []
+            if burrow is not None:
+                path = astar(self.__outer, ecosystem.water_map, ecosystem.plant_map, ecosystem.animal_map,
+                             x, y, burrow.x, burrow.y, max_path_length=10)
 
             if len(path) > 0:
                 path.pop(0)
@@ -1277,15 +1295,18 @@ class Rabbit(organisms.Organism):
 
             x = self.__outer.x
             y = self.__outer.y
-            burrow = self.__outer._burrow
+            burrow = self.__outer.burrow
             ecosystem = self.__outer._ecosystem
 
-            for _ in range(random.randint(minimum_amount, maximum_amount + 1)):
-                gender = random.choice([True, False])
-                rabbit = Rabbit(ecosystem, x, y, gender, burrow=burrow, in_burrow=True)
-                ecosystem.animal_map[x][y].append(rabbit)
+            if burrow is not None:
+                for _ in range(random.randint(minimum_amount, maximum_amount + 1)):
+                    gender = random.choice([True, False])
+                    rabbit = Rabbit(ecosystem, x, y, gender, burrow=burrow, in_burrow=True)
+                    ecosystem.animal_map[x][y].append(rabbit)
 
-            self._status = bt.Status.SUCCESS
+                self._status = bt.Status.SUCCESS
+            else:
+                self._status = bt.Status.FAIL
 
     class CloseToBirth(bt.Condition):
         """Determines if the rabbit is about to give birth."""
@@ -1303,7 +1324,7 @@ class Rabbit(organisms.Organism):
             self.__outer = outer
 
         def condition(self):
-            return self.__outer._in_burrow
+            return self.__outer.in_burrow
 
     class StabilizeHealth(bt.Action):
         """Stabilizes the rabbit's health for the remainder of the pregnancy."""
