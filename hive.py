@@ -3,7 +3,7 @@ from bee import Bee
 import behaviour_tree as bt
 
 HIVE_FOOD_CONSUMPTION = 0.1
-HIVE_BEE_MAKING_THRESHOLD = 100
+HIVE_BEE_MAKING_THRESHOLD = 101
 BEE_FOOD_COST = 20
 
 class Hive(organisms.Organism):
