@@ -67,9 +67,9 @@ class Flower(organisms.Organism):
             self.__outer = outer
 
         def condition(self):
-            isFlowerDead = self.__outer._amount < 0 or (self.__outer.seed and self.__outer._amount < PLANTED_SEED_AMOUNT)
+            isFlowerAlive = self.__outer._amount > 0 or (self.__outer.seed and self.__outer._amount > PLANTED_SEED_AMOUNT)
             isGroundDead = self.__outer._ecosystem.plant_map[self.__outer.x][self.__outer.y] == None # Check if there is grass or ground under. Could be flooded
-            return isFlowerDead or isGroundDead
+            return (not isFlowerAlive) or isGroundDead
 
     class Die(bt.Action):
         """Performs action after flower dies."""
