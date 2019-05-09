@@ -37,53 +37,25 @@ class Flower(organisms.Organism):
 
     def generate_tree(self):
         """Generates the tree for the tree."""
-        tree = bt.FallBack()
+        tree = bt.Sequence()
+        tree.add_child(self.Grow(self))
 
-        # check if dead
+
+        logic_fallback = bt.FallBack()
+        tree.add_child(logic_fallback)
+
+        # Check if dead
         dead_or_alive_sequence = bt.Sequence()
         dead_or_alive_sequence.add_child(self.IsDead(self))
         dead_or_alive_sequence.add_child(self.Die(self))
 
-        # things can happen always
-        sequence = bt.Sequence()
-        sequence.add_child(self.Grow(self))
+        # Produce nectar
         nectar_production = bt.Sequence()
+        logic_fallback.add_child(nectar_production)
         nectar_production.add_child(self.CanProduceNectar(self))
         nectar_production.add_child(self.ProduceNectar(self))
-        sequence.add_child(nectar_production)
 
-        # logic
-        logic_fallback = bt.FallBack()
-
-        tree.add_child(dead_or_alive_sequence)
-        tree.add_child(sequence)
-        tree.add_child(logic_fallback)
         return tree
-
-
-    class IsDead(bt.Condition):
-        """Check if flower is alive."""
-        def __init__(self, outer):
-            super().__init__()
-            self.__outer = outer
-
-        def condition(self):
-            isFlowerAlive = self.__outer._amount >= 0 or (self.__outer.seed and self.__outer._amount >= PLANTED_SEED_AMOUNT)
-            isGroundDead = self.__outer._ecosystem.plant_map[self.__outer.x][self.__outer.y] == None # Check if there is grass or ground under. Could be flooded
-            isTree = not isGroundDead and self.__outer._ecosystem.plant_map[self.__outer.x][self.__outer.y].type == organisms.Type.TREE
-            return (not isFlowerAlive) or isGroundDead or isTree
-
-    class Die(bt.Action):
-        """Performs action after flower dies."""
-        def __init__(self, outer):
-            super().__init__()
-            self.__outer = outer
-
-        def action(self):
-            x = self.__outer.x
-            y = self.__outer.y
-            self.__outer._ecosystem.flower_map[x][y].remove(self.__outer)
-            self._status = bt.Status.SUCCESS
 
 
     class Grow(bt.Action):
@@ -112,6 +84,31 @@ class Flower(organisms.Organism):
             self.__outer._ecosystem.plant_map[x][y].water_amount = max(0, self.__outer._ecosystem.plant_map[x][y].water_amount - FLOWER_WATER_USAGE)
             if self.__outer._amount > 0:
                 self.__outer.seed = False
+            self._status = bt.Status.SUCCESS
+
+
+    class IsDead(bt.Condition):
+        """Check if flower is alive."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            isFlowerAlive = self.__outer._amount >= 0 or (self.__outer.seed and self.__outer._amount >= PLANTED_SEED_AMOUNT)
+            isGroundDead = self.__outer._ecosystem.plant_map[self.__outer.x][self.__outer.y] == None # Check if there is grass or ground under. Could be flooded
+            isTree = not isGroundDead and self.__outer._ecosystem.plant_map[self.__outer.x][self.__outer.y].type == organisms.Type.TREE
+            return (not isFlowerAlive) or isGroundDead or isTree
+
+    class Die(bt.Action):
+        """Performs action after flower dies."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            self.__outer._ecosystem.flower_map[x][y].remove(self.__outer)
             self._status = bt.Status.SUCCESS
 
 
