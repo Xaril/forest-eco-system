@@ -802,13 +802,14 @@ class Rabbit(organisms.Organism):
                 next_point = path.pop(0)
                 x = next_point[0]
                 y = next_point[1]
+                ecosystem = self.__outer._ecosystem
                 if helpers.EuclidianDistance(self.__outer.x, self.__outer.y, x, y) <= 2:
                     self._status = bt.Status.SUCCESS
                     self.__outer._movement_timer += self.__outer._movement_cooldown
-                    self.__outer._ecosystem.animal_map[self.__outer.x][self.__outer.y].remove(self.__outer)
+                    index = ecosystem.animal_map[self.__outer.x][self.__outer.y].index(self.__outer)
+                    self.__outer._ecosystem.animal_map[x][y].append(ecosystem.animal_map[self.__outer.x][self.__outer.y].pop(index))
                     self.__outer.x = x
                     self.__outer.y = y
-                    self.__outer._ecosystem.animal_map[x][y].append(self.__outer)
                 else:
                     self._status = bt.Status.FAIL
 
@@ -851,10 +852,11 @@ class Rabbit(organisms.Organism):
             else:
                 self._status = bt.Status.SUCCESS
                 self.__outer._movement_timer += self.__outer._movement_cooldown
-                self.__outer._ecosystem.animal_map[x][y].remove(self.__outer)
+                ecosystem = self.__outer._ecosystem
+                index = ecosystem.animal_map[x][y].index(self.__outer)
+                ecosystem.animal_map[x + dx][y + dy].append(ecosystem.animal_map[x][y].pop(index))
                 self.__outer.x += dx
                 self.__outer.y += dy
-                self.__outer._ecosystem.animal_map[x + dx][y + dy].append(self.__outer)
 
     ##########
     # THIRST #
@@ -1547,19 +1549,20 @@ class Rabbit(organisms.Organism):
             # TODO: Make excessive movement result in size decrease
             x = self.__outer.x
             y = self.__outer.y
+            ecosystem = self.__outer._ecosystem
             direction = random.choice(list(helpers.Direction))
             dx = direction.value[0]
             dy = direction.value[1]
 
-            if x + dx < 0 or x + dx >= self.__outer._ecosystem.width or y + dy < 0 or y + dy >= self.__outer._ecosystem.height:
+            if x + dx < 0 or x + dx >= ecosystem.width or y + dy < 0 or y + dy >= ecosystem.height:
                 self._status = bt.Status.FAIL
-            elif self.__outer._ecosystem.water_map[x + dx][y + dy]:
+            elif ecosystem.water_map[x + dx][y + dy]:
                 self._status = bt.Status.FAIL
-            elif self.__outer._ecosystem.animal_map[x + dx][y + dy]:
+            elif ecosystem.animal_map[x + dx][y + dy]:
                 occupied_space = 0
-                if self.__outer._ecosystem.plant_map[x + dx][y + dy] and self.__outer._ecosystem.plant_map[x + dx][y + dy].type == organisms.Type.TREE:
+                if ecosystem.plant_map[x + dx][y + dy] and ecosystem.plant_map[x + dx][y + dy].type == organisms.Type.TREE:
                     occupied_space += 50
-                for animal in self.__outer._ecosystem.animal_map[x + dx][y + dy]:
+                for animal in ecosystem.animal_map[x + dx][y + dy]:
                     occupied_space += animal.size
                 from ecosystem import ANIMAL_CELL_CAPACITY
                 if occupied_space + self.__outer.size > ANIMAL_CELL_CAPACITY:
@@ -1567,7 +1570,7 @@ class Rabbit(organisms.Organism):
             else:
                 self._status = bt.Status.SUCCESS
                 self.__outer._movement_timer += self.__outer._movement_cooldown
-                self.__outer._ecosystem.animal_map[x][y].remove(self.__outer)
+                index = ecosystem.animal_map[x][y].index(self.__outer)
+                ecosystem.animal_map[x + dx][y + dy].append(ecosystem.animal_map[x][y].pop(index))
                 self.__outer.x += dx
                 self.__outer.y += dy
-                self.__outer._ecosystem.animal_map[x + dx][y + dy].append(self.__outer)
