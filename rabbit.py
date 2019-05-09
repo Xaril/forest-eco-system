@@ -33,6 +33,7 @@ NEW_BORN_TIME = 24*30
 NURSE_COOLDOWN = 24
 
 POOP_PERCENTAGE = 0.1
+CREATE_FLOWER_PERCENTAGE = 0.7
 
 
 class Rabbit(organisms.Organism):
@@ -56,6 +57,7 @@ class Rabbit(organisms.Organism):
         self._thirst_speed = thirst_speed
         self._tired_speed = tired_speed
         self._needs_to_poop = False
+        self._poop_contains_seed = False
 
         if self._adult:
             self.size = size
@@ -635,6 +637,8 @@ class Rabbit(organisms.Organism):
 
             # Prioritize flowers
             if ecosystem.flower_map[x][y] and not ecosystem.flower_map[x][y][0].seed:
+                if ecosystem.flower_map[x][y][0].has_seed:
+                    self.__outer._poop_contains_seed = True
                 ecosystem.flower_map[x][y].pop(0)
                 self.__outer._hunger = max(0, self.__outer._hunger - FLOWER_HUNGER_SATISFACTION)
                 self._status = bt.Status.SUCCESS
@@ -1129,6 +1133,18 @@ class Rabbit(organisms.Organism):
             poop_percentage = random.random()
             if poop_percentage <= POOP_PERCENTAGE:
                 self.__outer._needs_to_poop = False
+
+                if self.__outer._poop_contains_seed:
+                    create_flower = random.random()
+                    if create_flower <= CREATE_FLOWER_PERCENTAGE:
+                        from flower import Flower, PLANTED_SEED_AMOUNT
+                        x = self.__outer.x
+                        y = self.__outer.y
+                        ecosystem = self.__outer._ecosystem
+                        flower = Flower(ecosystem, x, y, PLANTED_SEED_AMOUNT, seed=True)
+                        ecosystem.flower_map[x][y].append(flower)
+
+                self.__outer._poop_contains_seed = False
                 self._status = bt.Status.SUCCESS
             else:
                 self._status = bt.Status.FAIL

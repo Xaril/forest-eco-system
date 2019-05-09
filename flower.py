@@ -18,7 +18,7 @@ NECTAR_PRODUCTION_SPEED = 0.1
 
 class Flower(organisms.Organism):
     """Defines the flower."""
-    def __init__(self, ecosystem, x, y, amount, seed=None, nectar=0):
+    def __init__(self, ecosystem, x, y, amount, seed=False, nectar=0):
         super().__init__(ecosystem, organisms.Type.FLOWER, x, y)
         if seed:
             self.seed = seed
@@ -26,6 +26,7 @@ class Flower(organisms.Organism):
             self.seed = amount <= 0
         self._amount = amount
         self.nectar = nectar
+        self.has_seed = False
 
     def get_image(self):
         if self.seed:
@@ -69,7 +70,8 @@ class Flower(organisms.Organism):
         def condition(self):
             isFlowerAlive = self.__outer._amount > 0 or (self.__outer.seed and self.__outer._amount > PLANTED_SEED_AMOUNT)
             isGroundDead = self.__outer._ecosystem.plant_map[self.__outer.x][self.__outer.y] == None # Check if there is grass or ground under. Could be flooded
-            return (not isFlowerAlive) or isGroundDead
+            isTree = not isGroundDead and self.__outer._ecosystem.plant_map[self.__outer.x][self.__outer.y].type == organisms.Type.TREE
+            return (not isFlowerAlive) or isGroundDead or isTree
 
     class Die(bt.Action):
         """Performs action after flower dies."""
