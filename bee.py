@@ -7,9 +7,10 @@ class Bee(organisms.Organism):
     """Defines the bee."""
     def __init__(self, ecosystem, x, y, hunger=0, tired=0, health=100, life_span=24*150,
                 hunger_speed=50/36, tired_speed=50/36,
-                vision_range={'left': 2, 'right': 2, 'up': 2, 'down': 2},
+                vision_range={'left': 1, 'right': 1, 'up': 1, 'down': 1},
                 smell_range={'left': 8, 'right': 8, 'up': 8, 'down': 8},
-                hive=None, in_hive=False, movement_cooldown=4, age=0, scout=True):
+                hive=None, in_hive=False, movement_cooldown=6, age=0, scout=True,
+                nectar_capacity=0.5):
         super().__init__(ecosystem, organisms.Type.BEE, x, y)
 
         self.size = 0
@@ -24,6 +25,8 @@ class Bee(organisms.Organism):
         self.in_hive = in_hive
         self._movement_cooldown = movement_cooldown
         self._age = age
+        self._nectar_amount = 0
+        self._nectar_capacity = nectar_capacity
 
         self._movement_timer = self._movement_cooldown
         self._target_location = None
@@ -50,17 +53,30 @@ class Bee(organisms.Organism):
         sequence = bt.Sequence()
         logic_fallback = bt.FallBack()
         scout_sequence = bt.Sequence()
+        recruit_sequence = bt.Sequence()
         logic_fallback.add_child(scout_sequence)
+        logic_fallback.add_child(recruit_sequence)
+
+        # Scout
+
         scout_sequence.add_child(self.IsScout(self))
         scout_fallback = bt.FallBack()
         scout_sequence.add_child(scout_fallback)
         food_known_sequence = bt.Sequence()
-        scout_sequence.add_child(food_known_sequence)
+        scout_fallback.add_child(food_known_sequence)
         food_known_fallback = bt.FallBack()
+        food_known_sequence.add_child(self.KnowWhereFoodIs(self))
         food_known_sequence.add_child(food_known_fallback)
         in_hive_sequence = bt.Sequence()
+        in_hive_sequence.add_child(self.InHive(self))
+        in_hive_sequence.add_child(self.AvailableRecruits(self))
+        in_hive_sequence.add_child(self.SendRecruits(self))
         food_known_fallback.add_child(in_hive_sequence)
-        # ADD GO TO HIVE
+        fly_to_hive_sequence = bt.Sequence()
+        fly_to_hive_sequence.add_child(self.SetHiveTargetLocation(self))
+        fly_to_hive_sequence.add_child(self.CanMove(self))
+        fly_to_hive_sequence.add_child(self.FlyToTargetLocation(self))
+        food_known_fallback.add_child(fly_to_hive_sequence)
 
 
         search_food_sequence = bt.Sequence()
@@ -70,16 +86,28 @@ class Bee(organisms.Organism):
         scout_food_fallback = bt.FallBack()
         search_food_sequence.add_child(scout_food_fallback)
 
-        # TODO: FIX
-        see_food_sequence = bt.Sequence()
+
+        can_see_food_sequence = bt.Sequence()
+        can_see_food_sequence.add_child(self.CanSeeFood(self))
 
         smell_food_sequence = bt.Sequence()
         smell_food_sequence.add_child(self.FindBestSmell(self))
+        smell_food_sequence.add_child(self.CanMove(self))
         smell_food_sequence.add_child(self.FlyToTargetLocation(self))
 
         random_movement_sequence = bt.Sequence()
+        random_movement_sequence.add_child(self.CanMove(self))
+        random_movement_sequence.add_child(self.FlyRandomly(self))
 
         scout_food_fallback.add_child(smell_food_sequence)
+        scout_food_fallback.add_child(random_movement_sequence)
+        scout_food_fallback.add_child(can_see_food_sequence)
+
+
+
+        # Recruit
+
+
 
 
         sequence.add_child(self.ReduceMovementTimer(self))
@@ -183,6 +211,75 @@ class Bee(organisms.Organism):
         def condition(self):
             return self.__outer.in_hive
 
+    class AvailableRecruits(bt.Condition):
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return True
+
+
+    class SendRecruits(bt.Action):
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            self._status = bt.Status.SUCCESS
+
+
+    class SetHiveTargetLocation(bt.Action):
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            hive = self.__outer._hive
+            self.__outer._target_location = (hive.x, hive.y)
+            self._status = bt.Status.SUCCESS
+
+
+    class HaveFood(bt.Condition):
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer._nectar_amount > 0
+
+    class LeaveFoodInHive(bt.Action):
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            self.h
+
+
+    class CanSeeFood(bt.Condition):
+        """Checks if the bee is in hive"""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            vision_range = self.__outer._vision_range
+            ecosystem = self.__outer._ecosystem
+            best_smell = 0
+            best_smell_location = None
+            for dx in range(-int(vision_range['left']), int(vision_range['right'])+1):
+                for dy in range(-int(vision_range['up']), int(vision_range['down'])+1):
+                    if x + dx < 0 or x + dx >= ecosystem.width or y + dy < 0 or y + dy >= ecosystem.height:
+                        continue
+                    if ecosystem.flower_map[x + dx][y + dy]:
+                        self.__outer._food_location = (x + dx, y + dy)
+                        self._status = bt.Status.SUCCESS
+                        return
+            self._status = bt.Status.FAIL
+
     class FindBestSmell(bt.Action):
         """Ticks down the movement timer for the rabbit."""
         def __init__(self, outer):
@@ -231,12 +328,18 @@ class Bee(organisms.Organism):
             if x + dx < 0 or x + dx >= self.__outer._ecosystem.width or y + dy < 0 or y + dy >= self.__outer._ecosystem.height:
                 self._status = bt.Status.FAIL
             else:
+                self._status = bt.Status.SUCCESS
                 self.__outer._movement_timer += self.__outer._movement_cooldown
                 self.__outer._ecosystem.animal_map[x][y].remove(self.__outer)
                 self.__outer.x += dx
                 self.__outer.y += dy
                 self.__outer._ecosystem.animal_map[x + dx][y + dy].append(self.__outer)
-                self._status = bt.Status.SUCCESS
+                for animal in self.__outer._ecosystem.animal_map[x + dx][y + dy]:
+                    if animal.type == organisms.Type.HIVE:
+                        self.__outer.in_hive = True
+                        return
+                self.__outer.in_hive = False
+
 
     class CanMove(bt.Condition):
         """Checks if the bee can move."""
@@ -246,3 +349,36 @@ class Bee(organisms.Organism):
 
         def condition(self):
             return self.__outer._movement_timer == 0
+
+
+    ###################
+    # RANDOM MOVEMENT #
+    ###################
+
+    class FlyRandomly(bt.Action):
+        """Moves the rabbit randomly."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            direction = random.choice(list(helpers.Direction))
+            dx = direction.value[0]
+            dy = direction.value[1]
+
+            if x + dx < 0 or x + dx >= self.__outer._ecosystem.width or y + dy < 0 or y + dy >= self.__outer._ecosystem.height:
+                self._status = bt.Status.FAIL
+            else:
+                self._status = bt.Status.SUCCESS
+                self.__outer._movement_timer += self.__outer._movement_cooldown
+                self.__outer._ecosystem.animal_map[x][y].remove(self.__outer)
+                self.__outer.x += dx
+                self.__outer.y += dy
+                self.__outer._ecosystem.animal_map[x + dx][y + dy].append(self.__outer)
+                for animal in self.__outer._ecosystem.animal_map[x + dx][y + dy]:
+                    if animal.type == organisms.Type.HIVE:
+                        self.__outer.in_hive = True
+                        return
+                self.__outer.in_hive = False
