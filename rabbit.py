@@ -34,6 +34,7 @@ NURSE_COOLDOWN = 24
 
 POOP_PERCENTAGE = 0.1
 CREATE_FLOWER_PERCENTAGE = 0.7
+MAX_FLOWER_AMOUNT = 5
 
 
 class Rabbit(organisms.Organism):
@@ -1156,14 +1157,15 @@ class Rabbit(organisms.Organism):
                 self.__outer._needs_to_poop = False
 
                 if self.__outer._poop_contains_seed:
-                    create_flower = random.random()
-                    if create_flower <= CREATE_FLOWER_PERCENTAGE:
-                        from flower import Flower, PLANTED_SEED_AMOUNT
-                        x = self.__outer.x
-                        y = self.__outer.y
-                        ecosystem = self.__outer._ecosystem
-                        flower = Flower(ecosystem, x, y, PLANTED_SEED_AMOUNT, seed=True)
-                        ecosystem.flower_map[x][y].append(flower)
+                    for _ in range(0, MAX_FLOWER_AMOUNT):
+                        create_flower = random.random()
+                        if create_flower <= CREATE_FLOWER_PERCENTAGE:
+                            from flower import Flower, PLANTED_SEED_AMOUNT
+                            x = self.__outer.x
+                            y = self.__outer.y
+                            ecosystem = self.__outer._ecosystem
+                            flower = Flower(ecosystem, x, y, PLANTED_SEED_AMOUNT, seed=True)
+                            ecosystem.flower_map[x][y].append(flower)
 
                 self.__outer._poop_contains_seed = False
                 self._status = bt.Status.SUCCESS
@@ -1445,7 +1447,7 @@ class Rabbit(organisms.Organism):
             for animal in ecosystem.animal_map[x][y]:
                 if animal is not self.__outer:
                     if animal.type == organisms.Type.RABBIT:
-                        if not animal.partner and animal.can_reproduce and animal.female is not self.__outer.female:
+                        if not animal.partner and animal.can_reproduce and animal.female != self.__outer.female:
                             return True
             return False
 
