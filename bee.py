@@ -6,6 +6,8 @@ import behaviour_tree as bt
 
 BEE_MIN_NECTAR_IN_FLOWER = 5
 
+POLLEN_AMOUNT = 2
+
 class Bee(organisms.Organism):
     """Defines the bee."""
     def __init__(self, ecosystem, x, y, hunger=0, tired=0, health=100, life_span=24*150,
@@ -42,6 +44,8 @@ class Bee(organisms.Organism):
             self._smell_range = smell_range
         else:
             smell_range = vision_range
+
+        self._pollen = None
 
     def get_image(self):
         return 'images/Bee.png'
@@ -397,8 +401,21 @@ class Bee(organisms.Organism):
 
         def action(self):
             flower = self.__outer._flower_to_harvest
+
+            # Dump pollen if have some
+            if self.__outer._pollen is not None:
+                if self.__outer._pollen is not flower:
+                    self.__outer._pollen = None
+                    flower.has_seed = True
+
             self.__outer._nectar_amount = self.__outer._nectar_capacity
             flower.nectar -= self.__outer._nectar_capacity
+
+            # Take pollen if there exists some
+            if flower.pollen >= POLLEN_AMOUNT:
+                flower.pollen -= POLLEN_AMOUNT
+                self.__outer._pollen = flower
+
             self._status = bt.Status.SUCCESS
 
     class RemoveFoodTargetLocation(bt.Action):

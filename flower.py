@@ -16,6 +16,11 @@ MAX_NECTAR_AMOUNT_MULTIPLIER = 0.5 # the max amount of nectar depents on flower 
 NECTAR_WATER_USAGE = 0.1
 NECTAR_PRODUCTION_SPEED = 0.1
 
+MAX_POLLEN_AMOUNT_MULTIPLIER = 0.2 # the max amount of pollen depents on flower amount
+POLLEN_WATER_USAGE = 0.1
+POLLEN_COOLDOWN = 24
+POLLEN_PRODUCTION_SPEED = 2
+
 class Flower(organisms.Organism):
     """Defines the flower."""
     def __init__(self, ecosystem, x, y, amount, seed=False, nectar=0):
@@ -28,6 +33,12 @@ class Flower(organisms.Organism):
         self.nectar = nectar
         self.has_seed = False
 
+        if not self.seed:
+            self.pollen = self._amount * MAX_POLLEN_AMOUNT_MULTIPLIER
+        else:
+            self.pollen = 0
+        self._pollen_timer = 0
+
     def get_image(self):
         if self.seed:
             return 'images/flowerSeed.png'
@@ -39,21 +50,31 @@ class Flower(organisms.Organism):
         """Generates the tree for the tree."""
         tree = bt.Sequence()
         tree.add_child(self.Grow(self))
-
+        tree.add_child(self.DecreasePollenTimer(self))
 
         logic_fallback = bt.FallBack()
         tree.add_child(logic_fallback)
 
         # Check if dead
         dead_or_alive_sequence = bt.Sequence()
+        logic_fallback.add_child(dead_or_alive_sequence)
         dead_or_alive_sequence.add_child(self.IsDead(self))
         dead_or_alive_sequence.add_child(self.Die(self))
 
+        production_sequence = bt.Sequence()
+        logic_fallback.add_child(production_sequence)
+
         # Produce nectar
-        nectar_production = bt.Sequence()
-        logic_fallback.add_child(nectar_production)
-        nectar_production.add_child(self.CanProduceNectar(self))
+        nectar_production = bt.FallBack()
+        production_sequence.add_child(nectar_production)
+        nectar_production.add_child(self.CantProduceNectar(self))
         nectar_production.add_child(self.ProduceNectar(self))
+
+        # Produce pollen
+        pollen_production = bt.FallBack()
+        production_sequence.add_child(pollen_production)
+        pollen_production.add_child(self.CantProducePollen(self))
+        pollen_production.add_child(self.ProducePollen(self))
 
         return tree
 
@@ -86,6 +107,15 @@ class Flower(organisms.Organism):
                 self.__outer.seed = False
             self._status = bt.Status.SUCCESS
 
+    class DecreasePollenTimer(bt.Action):
+        """Decreases the timer for controlling pollen production."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            self.__outer._pollen_timer = max(0, self.__outer._pollen_timer - 1)
+            self._status = bt.Status.SUCCESS
 
     class IsDead(bt.Condition):
         """Check if flower is alive."""
@@ -112,8 +142,8 @@ class Flower(organisms.Organism):
             self._status = bt.Status.SUCCESS
 
 
-    class CanProduceNectar(bt.Condition):
-        """Check if flower can produce nectar."""
+    class CantProduceNectar(bt.Condition):
+        """Check if flower cannot produce nectar."""
         def __init__(self, outer):
             super().__init__()
             self.__outer = outer
@@ -124,10 +154,10 @@ class Flower(organisms.Organism):
             is_big_enough = self.__outer._amount > REPRODUCTION_THRESHOLD
             have_enough_water = self.__outer._ecosystem.plant_map[x][y].water_amount >= NECTAR_WATER_USAGE
             have_room_for_more_nectar = self.__outer.nectar < self.__outer._amount * MAX_NECTAR_AMOUNT_MULTIPLIER
-            return is_big_enough and have_enough_water and have_room_for_more_nectar
+            return not (is_big_enough and have_enough_water and have_room_for_more_nectar)
 
     class ProduceNectar(bt.Action):
-        """Performs action after flower dies."""
+        """Produces nectar."""
         def __init__(self, outer):
             super().__init__()
             self.__outer = outer
@@ -149,5 +179,36 @@ class Flower(organisms.Organism):
                     if new_x < 0 or new_x >= self.__outer._ecosystem.width or new_y < 0 or new_y >= self.__outer._ecosystem.height:
                         continue
                     self.__outer._ecosystem.nectar_smell_map[new_x][new_y] += self.__outer.nectar/(i+1)
+
+            self._status = bt.Status.SUCCESS
+
+    class CantProducePollen(bt.Condition):
+        """Check if flower cannot produce pollen."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            is_big_enough = self.__outer._amount > REPRODUCTION_THRESHOLD
+            have_enough_water = self.__outer._ecosystem.plant_map[x][y].water_amount >= POLLEN_WATER_USAGE
+            have_room_for_more_pollen = self.__outer.pollen < self.__outer._amount * MAX_POLLEN_AMOUNT_MULTIPLIER
+            return self.__outer._pollen_timer > 0 or not (is_big_enough and have_enough_water and have_room_for_more_pollen)
+
+    class ProducePollen(bt.Action):
+        """Produces pollen."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            x = self.__outer.x
+            y = self.__outer.y
+
+            self.__outer.pollen = min(self.__outer._amount * MAX_POLLEN_AMOUNT_MULTIPLIER, self.__outer.pollen + POLLEN_PRODUCTION_SPEED)
+            self.__outer._ecosystem.plant_map[x][y].water_amount = max(0, self.__outer._ecosystem.plant_map[x][y].water_amount - POLLEN_WATER_USAGE)
+
+            self.__outer._pollen_timer = POLLEN_COOLDOWN
 
             self._status = bt.Status.SUCCESS
