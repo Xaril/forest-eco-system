@@ -32,6 +32,8 @@ REPRODUCTION_COOLDOWN = 24*5 # Rabbits usually have to wait 5 days before being 
 NEW_BORN_TIME = 24*30
 NURSE_COOLDOWN = 24
 
+POOP_PERCENTAGE = 0.1
+
 
 class Rabbit(organisms.Organism):
     """Defines the rabbit."""
@@ -53,6 +55,7 @@ class Rabbit(organisms.Organism):
         self._hunger_speed = hunger_speed
         self._thirst_speed = thirst_speed
         self._tired_speed = tired_speed
+        self._needs_to_poop = False
 
         if self._adult:
             self.size = size
@@ -222,6 +225,10 @@ class Rabbit(organisms.Organism):
         create_burrow_sequence.add_child(self.Sleep(self))
 
         # Pooping
+        poop_sequence = bt.Sequence()
+        logic_fallback.add_child(poop_sequence)
+        poop_sequence.add_child(self.CanPoop(self))
+        poop_sequence.add_child(self.Poop(self))
 
         # Nursing
         nurse_sequence = bt.Sequence()
@@ -630,11 +637,16 @@ class Rabbit(organisms.Organism):
             if ecosystem.flower_map[x][y] and not ecosystem.flower_map[x][y][0].seed:
                 ecosystem.flower_map[x][y].pop(0)
                 self.__outer._hunger = max(0, self.__outer._hunger - FLOWER_HUNGER_SATISFACTION)
-                # TODO: Make poop contain flower seeds
+                self._status = bt.Status.SUCCESS
+                self.__outer._needs_to_poop = True
                 # TODO: Make hunger being negative result in size increase
             elif ecosystem.plant_map[x][y]:
                 ecosystem.plant_map[x][y].amount -= GRASS_EATING_AMOUNT
                 self.__outer._hunger = max(0, self.__outer._hunger - GRASS_HUNGER_SATISFACTION)
+                self._status = bt.Status.SUCCESS
+                self.__outer._needs_to_poop = True
+            else:
+                self._status = bt.Status.FAIL
 
     class FoodNearby(bt.Condition):
         """Determines if there is food near the rabbit."""
@@ -1095,6 +1107,33 @@ class Rabbit(organisms.Organism):
             self._status = bt.Status.SUCCESS
 
     ###########
+    # POOPING #
+    ###########
+
+    class CanPoop(bt.Condition):
+        """Determines if the rabbit has to poop."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer._needs_to_poop
+
+    class Poop(bt.Action):
+        """The rabbit poops."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            poop_percentage = random.random()
+            if poop_percentage <= POOP_PERCENTAGE:
+                self.__outer._needs_to_poop = False
+                self._status = bt.Status.SUCCESS
+            else:
+                self._status = bt.Status.FAIL
+
+    ###########
     # NURSING #
     ###########
 
@@ -1128,7 +1167,6 @@ class Rabbit(organisms.Organism):
 
             self.__outer._nurse_timer = NURSE_COOLDOWN
 
-            print('Nursing children!')
             for animal in ecosystem.animal_map[x][y]:
                 if animal.type == organisms.Type.RABBIT and animal.age <= NEW_BORN_TIME:
                     animal._hunger = 0
