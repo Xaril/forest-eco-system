@@ -43,7 +43,7 @@ class Hive(organisms.Organism):
             self.__outer = outer
 
         def action(self):
-            self.__outer._food = max(0, self.__outer.food - HIVE_FOOD_CONSUMPTION)
+            self.__outer.food = max(0, self.__outer.food - HIVE_FOOD_CONSUMPTION)
             self._status = bt.Status.SUCCESS
 
     class Dying(bt.Condition):
@@ -80,7 +80,7 @@ class Hive(organisms.Organism):
             self.__outer = outer
 
         def condition(self):
-            return self.__outer._food >= HIVE_BEE_MAKING_THRESHOLD
+            return self.__outer.food >= HIVE_BEE_MAKING_THRESHOLD
 
 
     class CreateBee(bt.Action):
