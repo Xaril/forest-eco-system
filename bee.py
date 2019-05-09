@@ -3,6 +3,9 @@ import random
 import helpers
 import behaviour_tree as bt
 
+
+BEE_MIN_NECTAR_IN_FLOWER = 3
+
 class Bee(organisms.Organism):
     """Defines the bee."""
     def __init__(self, ecosystem, x, y, hunger=0, tired=0, health=100, life_span=24*150,
@@ -31,6 +34,7 @@ class Bee(organisms.Organism):
         self._movement_timer = self._movement_cooldown
         self._target_location = None
         self._food_location = None
+        self._flower_to_harvest = None
 
         self._scout = scout
         self._vision_range = vision_range
@@ -254,8 +258,67 @@ class Bee(organisms.Organism):
             self.__outer = outer
 
         def condition(self):
-            self.h
+            self.__outer._hive.food += self.__outer._nectar_amount
+            self.__outer._nectar_amount = 0
+            self._status = bt.Status.SUCCESS
 
+    class IsOnFoodTargetLocation(bt.Condition):
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            x = self.__outer.x
+            y = self.__outer.y
+
+            if not self.__outer._food_location:
+                return False
+
+            target_x, target_y = self.__outer._food_location
+            return x == target_x and y == target_y
+
+
+    class HaveTargetLocationNectar(bt.Condition):
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            target_x, target_y = self.__outer._food_location
+
+            if not self.__outer._ecosystem.flower_map[target_x][target_y]:
+                return False
+
+            best_flower = None
+            best_flower_nectar = 0
+            for flower in self.__outer._ecosystem.flower_map[target_x][target_y]:
+                if flower.nectar > BEE_MIN_NECTAR_IN_FLOWER and flower.nectar > best_flower_nectar:
+                    best_flower = best_flower
+                    best_flower_nectar = flower.nectar
+
+            self.__outer._flower_to_harvest = best_flower
+            return best_flower is not None
+
+    class TakeNectar(bt.Action):
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            flower = self.__outer._flower_to_harvest
+            self.__outer._nectar_amount = self.__outer._nectar_capacity
+            flower.nectar -= self.__outer._nectar_capacity
+            self._status = bt.Status.SUCCESS
+
+    class RemoveFoodTargetLocation(bt.Action):
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            self.__outer._flower_to_harvest = None
+            self.__outer._food_location = None
+            self._status = bt.Status.SUCCESS
 
     class CanSeeFood(bt.Condition):
         """Checks if the bee is in hive"""

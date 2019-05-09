@@ -11,7 +11,7 @@ class Hive(organisms.Organism):
     def __init__(self, ecosystem, x, y, size=10, food=100):
         super().__init__(ecosystem, organisms.Type.HIVE, x, y)
         self.size = size
-        self._food = food
+        self.food = food
 
     def get_image(self):
         return 'images/hive.png'
@@ -43,7 +43,7 @@ class Hive(organisms.Organism):
             self.__outer = outer
 
         def action(self):
-            self.__outer._food = max(0, self.__outer._food - HIVE_FOOD_CONSUMPTION)
+            self.__outer._food = max(0, self.__outer.food - HIVE_FOOD_CONSUMPTION)
             self._status = bt.Status.SUCCESS
 
     class Dying(bt.Condition):
@@ -53,7 +53,7 @@ class Hive(organisms.Organism):
             self.__outer = outer
 
         def condition(self):
-            return self.__outer._food <= 0
+            return self.__outer.food <= 0
 
     class Die(bt.Action):
         """Destroy the hive."""
