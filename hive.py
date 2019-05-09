@@ -43,7 +43,8 @@ class Hive(organisms.Organism):
             self.__outer = outer
 
         def action(self):
-            self.__outer.food = max(0, self.__outer.food - HIVE_FOOD_CONSUMPTION)
+            #print(self.__outer.food)
+            #self.__outer.food = max(0, self.__outer.food - HIVE_FOOD_CONSUMPTION)
             self._status = bt.Status.SUCCESS
 
     class Dying(bt.Condition):
@@ -62,6 +63,7 @@ class Hive(organisms.Organism):
             self.__outer = outer
 
         def action(self):
+            return
             x = self.__outer.x
             y = self.__outer.y
             self.__outer._ecosystem.animal_map[x][y].remove(self.__outer)
@@ -93,4 +95,5 @@ class Hive(organisms.Organism):
                 y = self.__outer.y
                 bee = Bee(self.__outer._ecosystem,x, y, hive = self.__outer)
                 self.__outer._ecosystem.animal_map[x][y].append(bee)
+                self.__outer.food -= BEE_FOOD_COST
                 self._status = bt.Status.SUCCESS

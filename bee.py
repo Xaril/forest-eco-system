@@ -4,7 +4,7 @@ import helpers
 import behaviour_tree as bt
 
 
-BEE_MIN_NECTAR_IN_FLOWER = 3
+BEE_MIN_NECTAR_IN_FLOWER = 5
 
 class Bee(organisms.Organism):
     """Defines the bee."""
@@ -12,7 +12,7 @@ class Bee(organisms.Organism):
                 hunger_speed=50/36, tired_speed=50/36,
                 vision_range={'left': 1, 'right': 1, 'up': 1, 'down': 1},
                 smell_range={'left': 8, 'right': 8, 'up': 8, 'down': 8},
-                hive=None, in_hive=False, movement_cooldown=6, age=0, scout=True,
+                hive=None, in_hive=False, movement_cooldown=2, age=0, scout=False,
                 nectar_capacity=0.5):
         super().__init__(ecosystem, organisms.Type.BEE, x, y)
 
@@ -33,7 +33,7 @@ class Bee(organisms.Organism):
 
         self._movement_timer = self._movement_cooldown
         self._target_location = None
-        self._food_location = None
+        self.food_location = None
         self._flower_to_harvest = None
 
         self._scout = scout
@@ -77,6 +77,7 @@ class Bee(organisms.Organism):
         in_hive_sequence.add_child(self.SendRecruits(self))
         food_known_fallback.add_child(in_hive_sequence)
         fly_to_hive_sequence = bt.Sequence()
+        fly_to_hive_sequence.add_child(self.NotInHive(self))
         fly_to_hive_sequence.add_child(self.SetHiveTargetLocation(self))
         fly_to_hive_sequence.add_child(self.CanMove(self))
         fly_to_hive_sequence.add_child(self.FlyToTargetLocation(self))
@@ -85,6 +86,7 @@ class Bee(organisms.Organism):
 
         search_food_sequence = bt.Sequence()
         scout_fallback.add_child(search_food_sequence)
+        search_food_sequence.add_child(self.DontKnowAboutFood(self))
         search_food_sequence.add_child(self.ShouldScoutForFood(self))
 
         scout_food_fallback = bt.FallBack()
@@ -107,10 +109,7 @@ class Bee(organisms.Organism):
         scout_food_fallback.add_child(random_movement_sequence)
         scout_food_fallback.add_child(can_see_food_sequence)
 
-
-
         # Recruit
-
         recruit_sequence.add_child(self.IsRecruit(self))
         recruit_fallback = bt.FallBack()
         recruit_sequence.add_child(recruit_fallback)
@@ -132,6 +131,7 @@ class Bee(organisms.Organism):
         have_nectar_sequence = bt.Sequence()
         have_nectar_sequence.add_child(self.HaveFood(self))
         have_nectar_fallback = bt.FallBack()
+        have_nectar_sequence.add_child(have_nectar_fallback)
         recruit_in_hive_sequence = bt.Sequence()
         have_nectar_fallback.add_child(recruit_in_hive_sequence)
         recruit_in_hive_sequence.add_child(self.InHive(self))
@@ -141,7 +141,25 @@ class Bee(organisms.Organism):
         move_to_hive_sequence.add_child(self.CanMove(self))
         move_to_hive_sequence.add_child(self.FlyToTargetLocation(self))
         have_nectar_fallback.add_child(move_to_hive_sequence)
+
+        recruit_no_food_fallback = bt.FallBack()
+        recruit_know_food_sequence = bt.Sequence()
+        recruit_no_food_fallback.add_child(recruit_know_food_sequence)
+        recruit_know_food_sequence.add_child(self.KnowWhereFoodIs(self))
+        recruit_know_food_sequence.add_child(self.SetFoodAsTarget(self))
+        recruit_know_food_sequence.add_child(self.CanMove(self))
+        recruit_know_food_sequence.add_child(self.FlyToTargetLocation(self))
+
+        recruit_dont_know_food_sequence = bt.Sequence()
+        recruit_dont_know_food_sequence.add_child(self.NotInHive(self))
+        recruit_dont_know_food_sequence.add_child(self.DontKnowAboutFood(self))
+        recruit_dont_know_food_sequence.add_child(self.SetHiveTargetLocation(self))
+        recruit_dont_know_food_sequence.add_child(self.CanMove(self))
+        recruit_dont_know_food_sequence.add_child(self.FlyToTargetLocation(self))
+
         recruit_fallback.add_child(have_nectar_sequence)
+        recruit_fallback.add_child(recruit_no_food_fallback)
+        recruit_fallback.add_child(recruit_dont_know_food_sequence)
 
 
 
@@ -236,7 +254,7 @@ class Bee(organisms.Organism):
             self.__outer = outer
 
         def condition(self):
-            return self.__outer._food_location is not None
+            return self.__outer.food_location is not None
 
 
     class InHive(bt.Condition):
@@ -248,13 +266,36 @@ class Bee(organisms.Organism):
         def condition(self):
             return self.__outer.in_hive
 
+    class NotInHive(bt.Condition):
+        """Checks if the bee is in hive"""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return not self.__outer.in_hive
+
+    class DontKnowAboutFood(bt.Condition):
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer.food_location is None
+
+
     class AvailableRecruits(bt.Condition):
         def __init__(self, outer):
             super().__init__()
             self.__outer = outer
 
         def condition(self):
-            return True
+            hive = self.__outer._hive
+            ecosystem = self.__outer._ecosystem
+            for animal in ecosystem.animal_map[hive.x][hive.y]:
+                if animal.type == organisms.Type.BEE and animal._hive == hive and not animal.food_location:
+                    return True
+            return False
 
 
     class SendRecruits(bt.Action):
@@ -263,6 +304,12 @@ class Bee(organisms.Organism):
             self.__outer = outer
 
         def action(self):
+            hive = self.__outer._hive
+            ecosystem = self.__outer._ecosystem
+            for animal in ecosystem.animal_map[hive.x][hive.y]:
+                if animal.type == organisms.Type.BEE and animal._hive == hive and not animal.food_location:
+                    animal.food_location = self.__outer.food_location
+            self.__outer.food_location = None
             self._status = bt.Status.SUCCESS
 
 
@@ -305,6 +352,7 @@ class Bee(organisms.Organism):
             self.__outer._nectar_amount = 0
             self._status = bt.Status.SUCCESS
 
+
     class IsOnFoodTargetLocation(bt.Condition):
         def __init__(self, outer):
             super().__init__()
@@ -314,10 +362,10 @@ class Bee(organisms.Organism):
             x = self.__outer.x
             y = self.__outer.y
 
-            if not self.__outer._food_location:
+            if not self.__outer.food_location:
                 return False
 
-            target_x, target_y = self.__outer._food_location
+            target_x, target_y = self.__outer.food_location
             return x == target_x and y == target_y
 
 
@@ -327,7 +375,7 @@ class Bee(organisms.Organism):
             self.__outer = outer
 
         def condition(self):
-            target_x, target_y = self.__outer._food_location
+            target_x, target_y = self.__outer.food_location
 
             if not self.__outer._ecosystem.flower_map[target_x][target_y]:
                 return False
@@ -335,8 +383,8 @@ class Bee(organisms.Organism):
             best_flower = None
             best_flower_nectar = 0
             for flower in self.__outer._ecosystem.flower_map[target_x][target_y]:
-                if flower.nectar > BEE_MIN_NECTAR_IN_FLOWER and flower.nectar > best_flower_nectar:
-                    best_flower = best_flower
+                if flower.nectar >= BEE_MIN_NECTAR_IN_FLOWER and flower.nectar > best_flower_nectar:
+                    best_flower = flower
                     best_flower_nectar = flower.nectar
 
             self.__outer._flower_to_harvest = best_flower
@@ -360,7 +408,7 @@ class Bee(organisms.Organism):
 
         def action(self):
             self.__outer._flower_to_harvest = None
-            self.__outer._food_location = None
+            self.__outer.food_location = None
             self._status = bt.Status.SUCCESS
 
     class CanSeeFood(bt.Condition):
@@ -381,13 +429,23 @@ class Bee(organisms.Organism):
                     if x + dx < 0 or x + dx >= ecosystem.width or y + dy < 0 or y + dy >= ecosystem.height:
                         continue
                     if ecosystem.flower_map[x + dx][y + dy]:
-                        self.__outer._food_location = (x + dx, y + dy)
+                        self.__outer.food_location = (x + dx, y + dy)
                         self._status = bt.Status.SUCCESS
                         return
             self._status = bt.Status.FAIL
 
+
+    class SetFoodAsTarget(bt.Action):
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            self.__outer._target_location = self.__outer.food_location
+            self._status = bt.Status.SUCCESS
+
+
     class FindBestSmell(bt.Action):
-        """Ticks down the movement timer for the rabbit."""
         def __init__(self, outer):
             super().__init__()
             self.__outer = outer
@@ -424,7 +482,7 @@ class Bee(organisms.Organism):
             x = self.__outer.x
             y = self.__outer.y
             target_location = self.__outer._target_location
-            if random.random() <= 0.5:
+            if random.random() <= 0:
                 random_dir = random.choice(list(helpers.Direction))
                 dx = random_dir.value[0]
                 dy = random_dir.value[1]

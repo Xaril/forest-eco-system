@@ -24,8 +24,8 @@ BURROW_PERCENTAGE = 0.002
 BURROW_RABBIT_MIN_AMOUNT = 2
 BURROW_RABBIT_MAX_AMOUNT = 5
 HIVES_PER_TREE = 0.02
-HIVE_BEE_MIN_AMOUNT = 5
-HIVE_BEE_MAX_AMOUNT = 10
+HIVE_BEE_MIN_AMOUNT = 1
+HIVE_BEE_MAX_AMOUNT = 1
 
 
 class Ecosystem():
@@ -118,8 +118,10 @@ class Ecosystem():
                         hive = Hive(self, x, y)
                         self.animal_map[x][y].append(hive)
                         bee_amount = random.randint(HIVE_BEE_MIN_AMOUNT, HIVE_BEE_MAX_AMOUNT+1)
+                        bee = Bee(self, x, y, hive=hive, scout=True)
+                        self.animal_map[x][y].append(bee)
                         for _ in range(bee_amount):
-                            bee = Bee(self, x, y, hive=hive)
+                            bee = Bee(self, x, y, hive=hive, scout=False)
                             self.animal_map[x][y].append(bee)
                 elif random.random() <= GRASS_INIT_PERCENTAGE:
                     grass = Grass(self, x, y, random.randint(-80, 101), None, self.get_initial_water_level(x,y))
@@ -137,7 +139,7 @@ class Ecosystem():
                 if random.random() <= FLOWER_PERCENTAGE:
                     if self.plant_map[x][y] and self.plant_map[x][y].type == Type.TREE:
                         continue
-                    flower = Flower(self, x, y, random.randint(-50, 101))
+                    flower = Flower(self, x, y, random.randint(-50, 101), nectar=random.randint(0,100))
                     self.flower_map[x][y].append(flower)
 
         # Animal map
