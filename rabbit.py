@@ -1169,16 +1169,17 @@ class Rabbit(organisms.Organism):
             if poop_percentage <= POOP_PERCENTAGE:
                 self.__outer._needs_to_poop = False
 
-                if self.__outer._poop_contains_seed:
-                    for _ in range(0, MAX_FLOWER_AMOUNT):
-                        create_flower = random.random()
-                        if create_flower <= CREATE_FLOWER_PERCENTAGE:
-                            from flower import Flower, PLANTED_SEED_AMOUNT
-                            x = self.__outer.x
-                            y = self.__outer.y
-                            ecosystem = self.__outer._ecosystem
-                            flower = Flower(ecosystem, x, y, PLANTED_SEED_AMOUNT, seed=True)
-                            ecosystem.flower_map[x][y].append(flower)
+                if self.__outer._ecosystem.plant_map[self.__outer.x][self.__outer.y] and not self.__outer._ecosystem.plant_map[self.__outer.x][self.__outer.y].type == organisms.Type.TREE:
+                    if self.__outer._poop_contains_seed:
+                        for _ in range(0, MAX_FLOWER_AMOUNT):
+                            create_flower = random.random()
+                            if create_flower <= CREATE_FLOWER_PERCENTAGE:
+                                from flower import Flower, PLANTED_SEED_AMOUNT
+                                x = self.__outer.x
+                                y = self.__outer.y
+                                ecosystem = self.__outer._ecosystem
+                                flower = Flower(ecosystem, x, y, PLANTED_SEED_AMOUNT, seed=True)
+                                ecosystem.flower_map[x][y].append(flower)
 
                 self.__outer._poop_contains_seed = False
                 self._status = bt.Status.SUCCESS
