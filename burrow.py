@@ -39,18 +39,18 @@ class Burrow(organisms.Organism):
                     if animal.type == organisms.Type.RABBIT:
                         self.__outer._time_since_used = 0
                         self._status = bt.Status.SUCCESS
-                        break
-            else:
-                self.__outer._time_since_used += 1
+                        return
+                        
+            self.__outer._time_since_used += 1
 
-                if self.__outer._time_since_used >= LIFE_LENGTH:
-                    for i in range(ecosystem.width):
-                        for j in range(ecosystem.height):
-                            for animal in ecosystem.animal_map[i][j]:
-                                if animal.type == organisms.Type.RABBIT:
-                                    if animal.burrow == self.__outer:
-                                        animal.burrow = None
-                    ecosystem.animal_map[x][y].remove(self.__outer)
-                    self._status = bt.Status.FAIL
-                else:
-                    self._status = bt.Status.SUCCESS
+            if self.__outer._time_since_used >= LIFE_LENGTH:
+                for i in range(ecosystem.width):
+                    for j in range(ecosystem.height):
+                        for animal in ecosystem.animal_map[i][j]:
+                            if animal.type == organisms.Type.RABBIT:
+                                if animal.burrow == self.__outer:
+                                    animal.burrow = None
+                ecosystem.animal_map[x][y].remove(self.__outer)
+                self._status = bt.Status.FAIL
+            else:
+                self._status = bt.Status.SUCCESS
