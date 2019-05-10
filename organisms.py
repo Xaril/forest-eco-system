@@ -14,6 +14,7 @@ class Type(Enum):
     BURROW = 6
     BEE = 7
     HIVE = 8
+    FOX = 9
 
 
 class Organism(ABC):

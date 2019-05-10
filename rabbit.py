@@ -40,7 +40,7 @@ MAX_FLOWER_AMOUNT = 5
 class Rabbit(organisms.Organism):
     """Defines the rabbit."""
     def __init__(self, ecosystem, x, y, female, adult=False, hunger=0,
-                 thirst=0, tired=0, health=100, size=20, life_span=24*365*5,
+                 thirst=0, tired=0, health=100, size=20, life_span=24*365*3,
                  hunger_speed=50/36, thirst_speed=50/72, tired_speed=50/36,
                  vision_range={'left': 4, 'right': 4, 'up': 4, 'down': 4},
                  burrow=None, in_burrow=False, movement_cooldown=3, age=0):

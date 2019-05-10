@@ -7,6 +7,7 @@ from rabbit import Rabbit
 from burrow import Burrow
 from bee import Bee
 from hive import Hive
+from fox import Fox
 from water import Water
 from weather import Weather
 from helpers import Direction, EuclidianDistance, InverseLerp
@@ -26,6 +27,7 @@ BURROW_RABBIT_MAX_AMOUNT = 5
 HIVES_PER_TREE = 0.02
 HIVE_BEE_MIN_AMOUNT = 1
 HIVE_BEE_MAX_AMOUNT = 1
+FOX_PERCENTAGE = 0.0025
 
 
 class Ecosystem():
@@ -147,6 +149,7 @@ class Ecosystem():
             for y in range(self.height):
                 if self.water_map[x][y]:
                     continue
+                # Rabbits
                 if random.random() <= BURROW_PERCENTAGE:
                     burrow = Burrow(self, x, y)
                     self.animal_map[x][y].append(burrow)
@@ -164,8 +167,14 @@ class Ecosystem():
                         rabbit = Rabbit(self, x + dx, y + dy,
                                         random.choice([True, False]),
                                         adult=True, burrow=burrow,
-                                        age=random.randint(24*365, 24*365*4))
+                                        age=random.randint(24*365, 24*365*2))
                         self.animal_map[x + dx][y + dy].append(rabbit)
+
+                # Foxes
+                if random.random() <= FOX_PERCENTAGE:
+                    fox = Fox(self, x, y, random.choice([True, False]),
+                              adult=True, age=random.randint(24*350, 24*365*4))
+                    self.animal_map[x][y].append(fox)
 
     def get_organisms_from_maps(self):
         """Looks through the maps to find organisms, and returns these in a list."""
