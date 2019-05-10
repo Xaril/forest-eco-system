@@ -21,13 +21,13 @@ INITAL_WATER_MAX_AMOUNT = 500
 WATER_POOLS = [20, 10, 5, 3, 2]
 WATER_POOLS_POSITIONS = []
 ANIMAL_CELL_CAPACITY = 100
-BURROW_PERCENTAGE = 0.002
+BURROW_PERCENTAGE = 0.001
 BURROW_RABBIT_MIN_AMOUNT = 2
-BURROW_RABBIT_MAX_AMOUNT = 5
+BURROW_RABBIT_MAX_AMOUNT = 3
 HIVES_PER_TREE = 0.02
 HIVE_BEE_MIN_AMOUNT = 1
 HIVE_BEE_MAX_AMOUNT = 1
-FOX_PERCENTAGE = 0.0025
+FOX_PERCENTAGE = 0.0
 
 
 class Ecosystem():
@@ -119,14 +119,14 @@ class Ecosystem():
                     if random.random() <= HIVES_PER_TREE:
                         hive = Hive(self, x, y)
                         self.animal_map[x][y].append(hive)
-                        bee_amount = random.randint(HIVE_BEE_MIN_AMOUNT, HIVE_BEE_MAX_AMOUNT+1)
+                        bee_amount = random.randint(HIVE_BEE_MIN_AMOUNT, HIVE_BEE_MAX_AMOUNT)
                         bee = Bee(self, x, y, hive=hive, scout=True)
                         self.animal_map[x][y].append(bee)
                         for _ in range(bee_amount):
                             bee = Bee(self, x, y, hive=hive, scout=False)
                             self.animal_map[x][y].append(bee)
                 elif random.random() <= GRASS_INIT_PERCENTAGE:
-                    grass = Grass(self, x, y, random.randint(-80, 101), None, self.get_initial_water_level(x,y))
+                    grass = Grass(self, x, y, random.randint(-80, 100), None, self.get_initial_water_level(x,y))
                     self.plant_map[x][y] = grass
                 else:
                     earth = Earth(self, x, y, self.get_initial_water_level(x,y))
@@ -141,7 +141,7 @@ class Ecosystem():
                 if random.random() <= FLOWER_PERCENTAGE:
                     if self.plant_map[x][y] and self.plant_map[x][y].type == Type.TREE:
                         continue
-                    flower = Flower(self, x, y, random.randint(-50, 101), nectar=random.randint(0,100))
+                    flower = Flower(self, x, y, random.randint(-50, 100), nectar=random.randint(0,100))
                     self.flower_map[x][y].append(flower)
 
         # Animal map
@@ -153,10 +153,10 @@ class Ecosystem():
                 if random.random() <= BURROW_PERCENTAGE:
                     burrow = Burrow(self, x, y)
                     self.animal_map[x][y].append(burrow)
-                    rabbit_amount = random.randint(BURROW_RABBIT_MIN_AMOUNT, BURROW_RABBIT_MAX_AMOUNT+1)
+                    rabbit_amount = random.randint(BURROW_RABBIT_MIN_AMOUNT, BURROW_RABBIT_MAX_AMOUNT)
                     for _ in range(rabbit_amount):
-                        dx = random.randint(-3, 4)
-                        dy = random.randint(-3, 4)
+                        dx = random.randint(-3, 3)
+                        dy = random.randint(-3, 3)
 
                         if x + dx < 0 or x + dx >= self.width or y + dy < 0 or y + dy >= self.height:
                             continue
