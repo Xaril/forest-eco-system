@@ -357,7 +357,7 @@ class Rabbit(organisms.Organism):
 
         def action(self):
             self.__outer.reproduction_timer = max(0, self.__outer.reproduction_timer - 1)
-            if self.__outer.reproduction_timer == 0:
+            if self.__outer.reproduction_timer == 0 and self.__outer._adult:
                 self.__outer.can_reproduce = True
             self._status = bt.Status.SUCCESS
 
@@ -651,9 +651,9 @@ class Rabbit(organisms.Organism):
                         self.__outer._hunger = max(0, self.__outer._hunger - FLOWER_HUNGER_SATISFACTION)
                         self._status = bt.Status.SUCCESS
                         self.__outer._needs_to_poop = True
-                        break
+                        return
                 # TODO: Make hunger being negative result in size increase
-            elif ecosystem.plant_map[x][y]:
+            if ecosystem.plant_map[x][y]:
                 ecosystem.plant_map[x][y].amount -= GRASS_EATING_AMOUNT
                 self.__outer._hunger = max(0, self.__outer._hunger - GRASS_HUNGER_SATISFACTION)
                 self._status = bt.Status.SUCCESS
@@ -838,8 +838,8 @@ class Rabbit(organisms.Organism):
                 dx = 0
                 dy = 0
                 if distance == 0:
-                    dx = random.randint(-1, 2)
-                    dy = random.randint(-1, 2)
+                    dx = random.randint(-1, 1)
+                    dy = random.randint(-1, 1)
                 else:
                     dx = round((x - burrow_x) / distance)
                     dy = round((y - burrow_y) / distance)
@@ -1300,9 +1300,9 @@ class Rabbit(organisms.Organism):
             ecosystem = self.__outer._ecosystem
 
             if burrow is not None:
-                for _ in range(random.randint(minimum_amount, maximum_amount + 1)):
+                for _ in range(random.randint(minimum_amount, maximum_amount)):
                     gender = random.choice([True, False])
-                    rabbit = Rabbit(ecosystem, x, y, gender, burrow=burrow, in_burrow=True)
+                    rabbit = Rabbit(ecosystem, x, y, gender, adult=False, burrow=burrow, in_burrow=True)
                     ecosystem.animal_map[x][y].append(rabbit)
 
                 self._status = bt.Status.SUCCESS
