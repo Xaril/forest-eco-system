@@ -170,9 +170,11 @@ class Flower(organisms.Organism):
             # Update nectar smell map
             self.__outer._ecosystem.nectar_smell_map[x][y] += self.__outer.nectar
             wind_direction, wind_speed = self.__outer._ecosystem.weather.get_wind_velocity()
-            # TODO: make wind affect spreding of the smell
-            for i in range(0, constants.NECTAR_SMELL_RANGE):
-                for dir in list(Direction):
+            for dir in list(Direction):
+                wind_effect = 0
+                if dir.value[0] == wind_direction.value[0] and dir.value[1] == wind_direction.value[1]:
+                    wind_effect += wind_speed
+                for i in range(0, constants.NECTAR_SMELL_RANGE + wind_effect):
                     new_x = x + (dir.value[0] * (i + 1))
                     new_y = y + (dir.value[1] * (i + 1))
                     # check if in bounds
