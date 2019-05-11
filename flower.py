@@ -15,6 +15,7 @@ MAX_DEGRADE_SPEED = -0.1
 MAX_NECTAR_AMOUNT_MULTIPLIER = 0.5 # the max amount of nectar depents on flower amount
 NECTAR_WATER_USAGE = 0.1
 NECTAR_PRODUCTION_SPEED = 0.1
+NECTAR_SMELL_THRESHOLD = 5
 
 MAX_POLLEN_AMOUNT_MULTIPLIER = 0.2 # the max amount of pollen depents on flower amount
 POLLEN_WATER_USAGE = 0.1
@@ -168,20 +169,21 @@ class Flower(organisms.Organism):
             self.__outer.nectar = min(self.__outer._amount * MAX_NECTAR_AMOUNT_MULTIPLIER, self.__outer.nectar + NECTAR_PRODUCTION_SPEED)
             self.__outer._ecosystem.plant_map[x][y].water_amount = max(0, self.__outer._ecosystem.plant_map[x][y].water_amount - NECTAR_WATER_USAGE)
             # Update nectar smell map
-            self.__outer._ecosystem.nectar_smell_map[x][y] += self.__outer.nectar
-            wind_direction, wind_speed = self.__outer._ecosystem.weather.get_wind_velocity()
-            for dir in list(Direction):
-                wind_effect = 0
-                if dir.value[0] == wind_direction.value[0] and dir.value[1] == wind_direction.value[1]:
-                    wind_effect += wind_speed
-                for i in range(0, constants.NECTAR_SMELL_RANGE + wind_effect):
-                    new_x = x + (dir.value[0] * (i + 1))
-                    new_y = y + (dir.value[1] * (i + 1))
-                    # check if in bounds
-                    if new_x < 0 or new_x >= self.__outer._ecosystem.width or new_y < 0 or new_y >= self.__outer._ecosystem.height:
-                        continue
-                    self.__outer._ecosystem.nectar_smell_map[new_x][new_y] += self.__outer.nectar/(i+1)
-
+            if self.__outer.nectar >= NECTAR_SMELL_THRESHOLD:
+                self.__outer._ecosystem.nectar_smell_map[x][y] += self.__outer.nectar
+                wind_direction, wind_speed = self.__outer._ecosystem.weather.get_wind_velocity()
+                for dir in list(Direction):
+                    wind_effect = 0
+                    if dir.value[0] == wind_direction.value[0] and dir.value[1] == wind_direction.value[1]:
+                        wind_effect += wind_speed
+                    for i in range(0, constants.NECTAR_SMELL_RANGE + wind_effect):
+                        new_x = x + (dir.value[0] * (i + 1))
+                        new_y = y + (dir.value[1] * (i + 1))
+                        # check if in bounds
+                        if new_x < 0 or new_x >= self.__outer._ecosystem.width or new_y < 0 or new_y >= self.__outer._ecosystem.height:
+                            continue
+                        self.__outer._ecosystem.nectar_smell_map[new_x][new_y] += self.__outer.nectar/(i+1)
+                        
             self._status = bt.Status.SUCCESS
 
     class CantProducePollen(bt.Condition):

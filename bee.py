@@ -5,8 +5,8 @@ import behaviour_tree as bt
 
 
 BEE_MIN_NECTAR_IN_FLOWER = 5
-
 POLLEN_AMOUNT = 2
+
 
 class Bee(organisms.Organism):
     """Defines the bee."""
@@ -14,7 +14,7 @@ class Bee(organisms.Organism):
                 hunger_speed=50/36, tired_speed=50/36,
                 vision_range={'left': 1, 'right': 1, 'up': 1, 'down': 1},
                 smell_range={'left': 8, 'right': 8, 'up': 8, 'down': 8},
-                hive=None, in_hive=False, movement_cooldown=2, age=0, scout=False,
+                hive=None, in_hive=False, movement_cooldown=4, age=0, scout=False,
                 nectar_capacity=0.5):
         super().__init__(ecosystem, organisms.Type.BEE, x, y)
 
@@ -40,8 +40,15 @@ class Bee(organisms.Organism):
 
         self._scout = scout
         self._vision_range = vision_range
+        self._orientation_memory = 3*24
+        self._time_since_last_amnesia = 0
         if scout:
             self._smell_range = smell_range
+            self._orientation_map = []
+            for x in range(ecosystem.width):
+                self._orientation_map.append([])
+                for y in range(ecosystem.height):
+                    self._orientation_map[x].append(False)
         else:
             smell_range = vision_range
 
@@ -171,6 +178,7 @@ class Bee(organisms.Organism):
 
         sequence.add_child(self.ReduceMovementTimer(self))
         sequence.add_child(self.IncreaseAge(self))
+        sequence.add_child(self.UpdateOrientationMap(self))
         sequence.add_child(logic_fallback)
 
         tree.add_child(is_dead_sequence)
@@ -197,6 +205,9 @@ class Bee(organisms.Organism):
             x = self.__outer.x
             y = self.__outer.y
             self.__outer._ecosystem.animal_map[x][y].remove(self.__outer)
+            self.__outer._hive.bees.remove(self.__outer)
+            if self.__outer._scout:
+                self.__outer._hive.has_scout = False
             self._status = bt.Status.SUCCESS
 
 
@@ -227,6 +238,27 @@ class Bee(organisms.Organism):
             self.__outer._age += 1
             self._status = bt.Status.SUCCESS
 
+
+    class UpdateOrientationMap(bt.Action):
+            def __init__(self, outer):
+                super().__init__()
+                self.__outer = outer
+
+            def action(self):
+                self._status = bt.Status.SUCCESS
+                if not self.__outer._scout:
+                    return
+                self.__outer._time_since_last_amnesia += 1
+                if self.__outer._time_since_last_amnesia >= self.__outer._orientation_memory:
+                    ecosystem = self.__outer._ecosystem
+                    for x in range(ecosystem.width):
+                        self.__outer._orientation_map.append([])
+                        for y in range(ecosystem.height):
+                            self.__outer._orientation_map[x].append(False)
+                    self.__outer._time_since_last_amnesia = 0
+                x = self.__outer.x
+                y = self.__outer.y
+                self.__outer._orientation_map[x][y] = True
 
     #####################
     # SCOUT BEES #
@@ -446,9 +478,11 @@ class Bee(organisms.Organism):
                     if x + dx < 0 or x + dx >= ecosystem.width or y + dy < 0 or y + dy >= ecosystem.height:
                         continue
                     if ecosystem.flower_map[x + dx][y + dy]:
-                        self.__outer.food_location = (x + dx, y + dy)
-                        self._status = bt.Status.SUCCESS
-                        return
+                        for flower in ecosystem.flower_map[x + dx][y + dy]:
+                            if flower.nectar > BEE_MIN_NECTAR_IN_FLOWER:
+                                self.__outer.food_location = (x + dx, y + dy)
+                                self._status = bt.Status.SUCCESS
+                                return
             self._status = bt.Status.FAIL
 
 
@@ -478,7 +512,7 @@ class Bee(organisms.Organism):
                 for dy in range(-int(smell_range['up']), int(smell_range['down'])+1):
                     if x + dx < 0 or x + dx >= ecosystem.width or y + dy < 0 or y + dy >= ecosystem.height:
                         continue
-                    if  ecosystem.nectar_smell_map[x + dx][y + dy] > best_smell:
+                    if  ecosystem.nectar_smell_map[x + dx][y + dy] > best_smell and not self.__outer._orientation_map[x + dx][y + dy] :
                         best_smell = ecosystem.nectar_smell_map[x + dx][y + dy]
                         best_smell_location = (x + dx, y + dy)
 
@@ -537,7 +571,7 @@ class Bee(organisms.Organism):
     ###################
 
     class FlyRandomly(bt.Action):
-        """Moves the rabbit randomly."""
+        """Moves the bee randomly."""
         def __init__(self, outer):
             super().__init__()
             self.__outer = outer
@@ -545,21 +579,27 @@ class Bee(organisms.Organism):
         def action(self):
             x = self.__outer.x
             y = self.__outer.y
-            direction = random.choice(list(helpers.Direction))
-            dx = direction.value[0]
-            dy = direction.value[1]
+            directions = list(helpers.Direction)
+            random.shuffle(directions)
+            for (i, dir) in enumerate(directions):
+                dx = dir.value[0]
+                dy = dir.value[1]
 
-            if x + dx < 0 or x + dx >= self.__outer._ecosystem.width or y + dy < 0 or y + dy >= self.__outer._ecosystem.height:
-                self._status = bt.Status.FAIL
-            else:
-                self._status = bt.Status.SUCCESS
-                self.__outer._movement_timer += self.__outer._movement_cooldown
-                self.__outer._ecosystem.animal_map[x][y].remove(self.__outer)
-                self.__outer.x += dx
-                self.__outer.y += dy
-                self.__outer._ecosystem.animal_map[x + dx][y + dy].append(self.__outer)
-                for animal in self.__outer._ecosystem.animal_map[x + dx][y + dy]:
-                    if animal.type == organisms.Type.HIVE:
-                        self.__outer.in_hive = True
-                        return
-                self.__outer.in_hive = False
+                if x + dx < 0 or x + dx >= self.__outer._ecosystem.width or y + dy < 0 or y + dy >= self.__outer._ecosystem.height:
+                    continue
+                elif self.__outer._orientation_map[x + dx][y + dy] and i < len(directions) - 1:
+                    continue
+                else:
+                    self._status = bt.Status.SUCCESS
+                    self.__outer._movement_timer += self.__outer._movement_cooldown
+                    self.__outer._ecosystem.animal_map[x][y].remove(self.__outer)
+                    self.__outer.x += dx
+                    self.__outer.y += dy
+                    self.__outer._ecosystem.animal_map[x + dx][y + dy].append(self.__outer)
+                    for animal in self.__outer._ecosystem.animal_map[x + dx][y + dy]:
+                        if animal.type == organisms.Type.HIVE:
+                            self.__outer.in_hive = True
+                            return
+                    self.__outer.in_hive = False
+                    return
+            self._status = bt.Status.FAIL

@@ -25,9 +25,9 @@ ANIMAL_CELL_CAPACITY = 100
 BURROW_PERCENTAGE = 0.002
 BURROW_RABBIT_MIN_AMOUNT = 2
 BURROW_RABBIT_MAX_AMOUNT = 3
-HIVES_PER_TREE = 0.02
-HIVE_BEE_MIN_AMOUNT = 1
-HIVE_BEE_MAX_AMOUNT = 1
+HIVES_PER_TREE = 0.04
+HIVE_BEE_MIN_AMOUNT = 5
+HIVE_BEE_MAX_AMOUNT = 9
 DEN_PERCENTAGE = 0.001
 DEN_FOX_MIN_AMOUNT = 1
 DEN_FOX_MAX_AMOUNT = 2
@@ -124,10 +124,12 @@ class Ecosystem():
                         self.animal_map[x][y].append(hive)
                         bee_amount = random.randint(HIVE_BEE_MIN_AMOUNT, HIVE_BEE_MAX_AMOUNT)
                         bee = Bee(self, x, y, hive=hive, scout=True)
+                        hive.bees.append(bee)
                         self.animal_map[x][y].append(bee)
                         for _ in range(bee_amount):
                             bee = Bee(self, x, y, hive=hive, scout=False)
                             self.animal_map[x][y].append(bee)
+                            hive.bees.append(bee)
                 elif random.random() <= GRASS_INIT_PERCENTAGE:
                     grass = Grass(self, x, y, random.randint(-80, 100), None, self.get_initial_water_level(x,y))
                     self.plant_map[x][y] = grass

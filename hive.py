@@ -4,14 +4,17 @@ import behaviour_tree as bt
 
 HIVE_FOOD_CONSUMPTION = 0.1
 HIVE_BEE_MAKING_THRESHOLD = 101
-BEE_FOOD_COST = 20
+BEE_FOOD_COST = 10
 
 class Hive(organisms.Organism):
     """Defines the hive, which is just an immovable object."""
-    def __init__(self, ecosystem, x, y, size=10, food=100):
+    def __init__(self, ecosystem, x, y, size=10, food=100, capacity=10):
         super().__init__(ecosystem, organisms.Type.HIVE, x, y)
         self.size = size
         self.food = food
+        self.bees = []
+        self._capacity = capacity
+        self.has_scout = True
 
     def get_image(self):
         return 'images/hive.png'
@@ -22,12 +25,13 @@ class Hive(organisms.Organism):
 
         is_dead_sequence = bt.Sequence()
         is_dead_sequence.add_child(self.Dying(self))
-        is_dead_sequence.add_child(self.Die(self))
+        #is_dead_sequence.add_child(self.Die(self))
 
         sequence = bt.Sequence()
         sequence.add_child(self.DecreaseFood(self))
         create_bee_sequence = bt.Sequence()
         create_bee_sequence.add_child(self.CanCreateBee(self))
+        create_bee_sequence.add_child(self.HaveEnoughtRoom(self))
         create_bee_sequence.add_child(self.CreateBee(self))
         sequence.add_child(create_bee_sequence)
 
@@ -43,8 +47,7 @@ class Hive(organisms.Organism):
             self.__outer = outer
 
         def action(self):
-            #print(self.__outer.food)
-            #self.__outer.food = max(0, self.__outer.food - HIVE_FOOD_CONSUMPTION)
+            self.__outer.food = max(0, self.__outer.food - HIVE_FOOD_CONSUMPTION)
             self._status = bt.Status.SUCCESS
 
     class Dying(bt.Condition):
@@ -63,6 +66,7 @@ class Hive(organisms.Organism):
             self.__outer = outer
 
         def action(self):
+            self._status = bt.Status.FAIL
             return
             x = self.__outer.x
             y = self.__outer.y
@@ -82,7 +86,17 @@ class Hive(organisms.Organism):
             self.__outer = outer
 
         def condition(self):
-            return self.__outer.food >= HIVE_BEE_MAKING_THRESHOLD
+            return self.__outer.food >= HIVE_BEE_MAKING_THRESHOLD or (self.__outer.food > BEE_FOOD_COST and len(self.__outer.bees) <= 5 )
+
+
+    class HaveEnoughtRoom(bt.Condition):
+        """Check if there is enough room in the hive"""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer._capacity > len(self.__outer.bees)
 
 
     class CreateBee(bt.Action):
@@ -95,5 +109,6 @@ class Hive(organisms.Organism):
                 y = self.__outer.y
                 bee = Bee(self.__outer._ecosystem,x, y, hive = self.__outer)
                 self.__outer._ecosystem.animal_map[x][y].append(bee)
+                self.__outer.bees.append(bee)
                 self.__outer.food -= BEE_FOOD_COST
                 self._status = bt.Status.SUCCESS
