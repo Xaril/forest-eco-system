@@ -134,6 +134,30 @@ class Fox(organisms.Organism):
         # New born logic
         # TODO: Implement it.
 
+        # Eating
+
+        # Drinking
+        thirsty_sequence = bt.Sequence()
+        logic_fallback.add_child(thirsty_sequence)
+        thirsty_sequence.add_child(self.ThirstierThanTired(self))
+        thirsty_sequence.add_child(self.Thirsty(self))
+
+        thirsty_fallback = bt.FallBack()
+        thirsty_sequence.add_child(thirsty_fallback)
+
+        adjacent_water_sequence = bt.Sequence()
+        thirsty_fallback.add_child(adjacent_water_sequence)
+        adjacent_water_sequence.add_child(self.WaterAdjacent(self))
+        adjacent_water_sequence.add_child(self.Drink(self))
+
+        water_nearby_sequence = bt.Sequence()
+        thirsty_fallback.add_child(water_nearby_sequence)
+        # Might want foxes to only know about water they've seen,
+        # instead of knowing about water globally
+        water_nearby_sequence.add_child(self.CanMove(self))
+        water_nearby_sequence.add_child(self.FindPathToWater(self))
+        water_nearby_sequence.add_child(self.MoveOnPath(self))
+
         # Sleeping
         sleep_sequence = bt.Sequence()
         logic_fallback.add_child(sleep_sequence)
@@ -387,6 +411,135 @@ class Fox(organisms.Organism):
 
         def condition(self):
             return self.__outer._movement_timer == 0
+
+    class MoveOnPath(bt.Action):
+        """Moves on the current path."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            path = self.__outer._movement_path
+
+            if not path:
+                self._status = bt.Status.FAIL
+            else:
+                next_point = path.pop(0)
+                x = next_point[0]
+                y = next_point[1]
+                ecosystem = self.__outer._ecosystem
+                if helpers.EuclidianDistance(self.__outer.x, self.__outer.y, x, y) <= 2:
+                    self._status = bt.Status.SUCCESS
+                    self.__outer._movement_timer += self.__outer._movement_cooldown
+                    index = ecosystem.animal_map[self.__outer.x][self.__outer.y].index(self.__outer)
+                    self.__outer._ecosystem.animal_map[x][y].append(ecosystem.animal_map[self.__outer.x][self.__outer.y].pop(index))
+                    self.__outer.x = x
+                    self.__outer.y = y
+                else:
+                    self._status = bt.Status.FAIL
+
+    ##########
+    # THIRST #
+    ##########
+
+    class ThirstierThanTired(bt.Condition):
+        """Check if the fox is thirstier than it is tired."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer._thirst >= self.__outer._tired
+
+    class Thirsty(bt.Condition):
+        """Check if the fox is thirsty."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return not self.__outer._stabilized_health and self.__outer._thirst >= THIRST_SEEK_THRESHOLD
+
+    class WaterAdjacent(bt.Condition):
+        """Check if there is water next to the fox."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            ecosystem = self.__outer._ecosystem
+
+            for direction in list(helpers.Direction):
+                dx = direction.value[0]
+                dy = direction.value[1]
+
+                if x + dx < 0 or x + dx >= ecosystem.width or y + dy < 0 or y + dy >= ecosystem.height:
+                    continue
+
+                if ecosystem.water_map[x + dx][y + dy]:
+                    return True
+
+            return False
+
+    class Drink(bt.Action):
+        """Drinks from an adjacent cell."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            ecosystem = self.__outer._ecosystem
+
+            self._status = bt.Status.FAIL
+            for direction in list(helpers.Direction):
+                dx = direction.value[0]
+                dy = direction.value[1]
+
+                if x + dx < 0 or x + dx >= ecosystem.width or y + dy < 0 or y + dy >= ecosystem.height:
+                    continue
+
+                if ecosystem.water_map[x + dx][y + dy]:
+                    ecosystem.water_map[x + dx][y + dy].water_amount -= WATER_DRINKING_AMOUNT
+                    self.__outer._thirst = 0
+                    self._status = bt.Status.SUCCESS
+                    break
+
+    class FindPathToWater(bt.Action):
+        """Finds a path to the best water source."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            ecosystem = self.__outer._ecosystem
+
+            best_water = None
+            best_distance = math.inf
+
+            for water_x in range(ecosystem.width):
+                for water_y in range(ecosystem.height):
+                    distance = helpers.EuclidianDistance(x, y, water_x, water_y)
+                    if distance < best_distance:
+                        if ecosystem.water_map[water_x][water_y]:
+                            best_water = ecosystem.water_map[water_x][water_y]
+                            best_distance = distance
+
+
+            path = astar(self.__outer, ecosystem.water_map, ecosystem.plant_map, ecosystem.animal_map,
+                               x, y, best_water.x, best_water.y, max_path_length=10)
+            if len(path) > 0:
+                path.pop(0)
+                self.__outer._movement_path = path
+                self._status = bt.Status.SUCCESS
+            else:
+                self.__outer._movement_path = None
+                self._status = bt.Status.FAIL
 
     #############
     # TIREDNESS #
