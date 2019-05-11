@@ -18,16 +18,6 @@ class Game(arcade.Window):
 
         self.ecosystem = None
 
-        self.populations = {
-            'rabbit': [],
-            'bee': [],
-            'fox': [],
-            'flower': []
-        }
-
-        self.steps = 15000
-        self.step = 0
-
         arcade.set_background_color(arcade.color.BLACK)
 
     def setup(self):
@@ -42,55 +32,73 @@ class Game(arcade.Window):
 
     def update(self, delta_time):
         """ All the logic to move, and the game logic goes here. """
-        if self.step < self.steps:
-            self.step += 1
+        self.sprite_list = arcade.SpriteList()
 
-            self.sprite_list = arcade.SpriteList()
+        ecosystem_organisms = self.ecosystem.run()
 
-            ecosystem_organisms = self.ecosystem.run()
-            rabbits = 0
-            foxes = 0
-            bees = 0
-            flowers = 0
-
-            for organism in ecosystem_organisms:
-                sprite = arcade.Sprite(organism.get_image(), 1)
-                sprite.center_x = organism.x * CELL_WIDTH + CELL_WIDTH/2
-                sprite.center_y = organism.y * CELL_HEIGHT + CELL_HEIGHT/2
-                self.sprite_list.append(sprite)
-
-                # Observe animal populations
-                if organism.type == Type.RABBIT:
-                    rabbits += 1
-                elif organism.type == Type.FOX:
-                    foxes += 1
-                elif organism.type == Type.BEE:
-                    bees += 1
-                elif organism.type == Type.FLOWER:
-                    flowers += 1
-
-            self.populations['rabbit'].append(rabbits)
-            self.populations['fox'].append(foxes)
-            self.populations['bee'].append(bees)
-            self.populations['flower'].append(flowers)
-        else:
-            plt.plot(self.populations['rabbit'], label='Rabbits')
-            plt.plot(self.populations['fox'], label='Foxes')
-            plt.plot(self.populations['bee'], label='Bees')
-            plt.plot(self.populations['flower'], label='Flowers')
-            plt.xlabel('Time')
-            plt.legend(loc='upper right')
-            plt.ylabel('Population amount')
-            plt.show()
-            exit()
+        for organism in ecosystem_organisms:
+            sprite = arcade.Sprite(organism.get_image(), 1)
+            sprite.center_x = organism.x * CELL_WIDTH + CELL_WIDTH/2
+            sprite.center_y = organism.y * CELL_HEIGHT + CELL_HEIGHT/2
+            self.sprite_list.append(sprite)
 
 
+def plot():
+    populations = {
+        'rabbit': [],
+        'bee': [],
+        'fox': [],
+        'flower': []
+    }
+
+    steps = 20000
+
+    ecosystem = Ecosystem(int(SCREEN_WIDTH/CELL_WIDTH), int(SCREEN_HEIGHT/CELL_HEIGHT))
+
+    # Iterate over time
+    for i in range(steps):
+        ecosystem_organisms = ecosystem.run()
+
+        rabbits = 0
+        foxes = 0
+        bees = 0
+        flowers = 0
+
+        for organism in ecosystem_organisms:
+            # Observe animal populations
+            if organism.type == Type.RABBIT:
+                rabbits += 1
+            elif organism.type == Type.FOX:
+                foxes += 1
+            elif organism.type == Type.BEE:
+                bees += 1
+            elif organism.type == Type.FLOWER:
+                flowers += 1
+
+        populations['rabbit'].append(rabbits)
+        populations['fox'].append(foxes)
+        populations['bee'].append(bees)
+        populations['flower'].append(flowers)
+
+    # Plot the results
+    plt.plot(populations['rabbit'], label='Rabbits')
+    plt.plot(populations['fox'], label='Foxes')
+    plt.plot(populations['bee'], label='Bees')
+    plt.plot(populations['flower'], label='Flowers')
+    plt.xlabel('Time')
+    plt.legend(loc='upper right')
+    plt.ylabel('Population amount')
+    plt.show()
 
 
 def main():
-    game = Game(SCREEN_WIDTH, SCREEN_HEIGHT)
-    game.setup()
-    arcade.run()
+    plot_data = True
+    if plot_data:
+        plot()
+    else:
+        game = Game(SCREEN_WIDTH, SCREEN_HEIGHT)
+        game.setup()
+        arcade.run()
 
 
 if __name__ == "__main__":
