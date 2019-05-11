@@ -10,7 +10,7 @@ POLLEN_AMOUNT = 2
 
 class Bee(organisms.Organism):
     """Defines the bee."""
-    def __init__(self, ecosystem, x, y, hunger=0, tired=0, health=100, life_span=24*150,
+    def __init__(self, ecosystem, x, y, hunger=0, tired=0, health=100, life_span=24*1,
                 hunger_speed=50/36, tired_speed=50/36,
                 vision_range={'left': 1, 'right': 1, 'up': 1, 'down': 1},
                 smell_range={'left': 8, 'right': 8, 'up': 8, 'down': 8},
@@ -175,7 +175,7 @@ class Bee(organisms.Organism):
 
 
 
-
+        sequence.add_child(self.MakeScoutIfNeeded(self))
         sequence.add_child(self.ReduceMovementTimer(self))
         sequence.add_child(self.IncreaseAge(self))
         sequence.add_child(self.UpdateOrientationMap(self))
@@ -215,6 +215,25 @@ class Bee(organisms.Organism):
     #####################
     # VARIABLE CONTROLS #
     #####################
+
+    class MakeScoutIfNeeded(bt.Action):
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            if not self.__outer._hive.has_scout:
+                self.__outer._scout = True
+                self.__outer._smell_range = {'left': 8, 'right': 8, 'up': 8, 'down': 8}
+                self.__outer._orientation_map = []
+                for x in range(ecosystem.width):
+                    self._orientation_map.append([])
+                    for y in range(ecosystem.height):
+                        self._orientation_map[x].append(False)
+                self.__outer._hive.has_scout = True
+                print('new scout made')
+
+            self._status = bt.Status.SUCCESS
 
     class ReduceMovementTimer(bt.Action):
         """Ticks down the movement timer for the rabbit."""
