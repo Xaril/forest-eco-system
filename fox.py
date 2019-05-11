@@ -7,7 +7,7 @@ class Fox(organisms.Organism):
                  thirst=0, tired=0, health=100, size=20, life_span=24*365*5,
                  hunger_speed=50/36, thirst_speed=50/72, tired_speed=50/36,
                  vision_range={'left': 4, 'right': 4, 'up': 4, 'down': 4},
-                 burrow=None, in_burrow=False, movement_cooldown=3, age=0):
+                 den=None, in_den=False, movement_cooldown=2, age=0):
         super().__init__(ecosystem, organisms.Type.FOX, x, y)
         self.female = female
         self._adult = adult
@@ -52,8 +52,8 @@ class Fox(organisms.Organism):
         self._nurse_timer = 0
         self._stop_nursing_timer = 0
 
-        self.burrow = burrow
-        self.in_burrow = False
+        self.den = den
+        self.in_den = False
 
         self._asleep = False
         self._sleep_time = 0

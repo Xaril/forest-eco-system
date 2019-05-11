@@ -15,6 +15,7 @@ class Type(Enum):
     BEE = 7
     HIVE = 8
     FOX = 9
+    DEN = 10
 
 
 class Organism(ABC):
