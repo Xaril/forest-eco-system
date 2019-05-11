@@ -177,6 +177,23 @@ class Fox(organisms.Organism):
         tired_sequence.add_child(self.Sleep(self))
 
         # Nursing
+        nurse_sequence = bt.Sequence()
+        logic_fallback.add_child(nurse_sequence)
+        nurse_sequence.add_child(self.ShouldNurse(self))
+
+        nurse_fallback = bt.FallBack()
+        nurse_sequence.add_child(nurse_fallback)
+
+        burrow_nurse_sequence = bt.Sequence()
+        nurse_fallback.add_child(burrow_nurse_sequence)
+        burrow_nurse_sequence.add_child(self.InDen(self))
+        burrow_nurse_sequence.add_child(self.Nurse(self))
+
+        move_to_burrow_nurse_sequence = bt.Sequence()
+        nurse_fallback.add_child(move_to_burrow_nurse_sequence)
+        move_to_burrow_nurse_sequence.add_child(self.CanMove(self))
+        move_to_burrow_nurse_sequence.add_child(self.FindPathToDen(self))
+        move_to_burrow_nurse_sequence.add_child(self.MoveOnPath(self))
 
         # Giving birth
         birth_sequence = bt.Sequence()
@@ -654,6 +671,77 @@ class Fox(organisms.Organism):
         def action(self):
             self.__outer._asleep = True
             self._status = bt.Status.SUCCESS
+
+    ###########
+    # NURSING #
+    ###########
+
+    class ShouldNurse(bt.Condition):
+        """Determines if the fox should nurse its children or not."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            den = self.__outer.den
+
+            if den is not None:
+                # Should nurse if the time it takes to reach den is what's left
+                # on the timer.
+                distance = helpers.EuclidianDistance(x, y, den.x, den.y)
+                nurse_timer = self.__outer._nurse_timer
+                return distance >= nurse_timer
+            else:
+                return False
+
+    class Nurse(bt.Action):
+        """The fox nurses its children."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            ecosystem = self.__outer._ecosystem
+
+            self.__outer._nurse_timer = NURSE_COOLDOWN
+
+            for animal in ecosystem.animal_map[x][y]:
+                if animal.type == organisms.Type.FOX and animal.age <= NEW_BORN_TIME:
+                    animal._hunger = 0
+                    animal._thirst = 0
+                    animal._tired = 0
+
+            self._status = bt.Status.SUCCESS
+
+    class FindPathToDen(bt.Action):
+        """Finds a path to the fox's den."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            den = self.__outer.den
+            vision_range = self.__outer._vision_range
+            ecosystem = self.__outer._ecosystem
+
+            path = []
+            if den is not None:
+                path = astar(self.__outer, ecosystem.water_map, ecosystem.plant_map, ecosystem.animal_map,
+                             x, y, den.x, den.y, max_path_length=10)
+
+            if len(path) > 0:
+                path.pop(0)
+                self.__outer._movement_path = path
+                self._status = bt.Status.SUCCESS
+            else:
+                self.__outer._movement_path = None
+                self._status = bt.Status.FAIL
 
     ################
     # GIVING BIRTH #
