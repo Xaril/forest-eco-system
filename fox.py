@@ -6,6 +6,29 @@ import math
 from astar import astar
 from water import WATER_POOL_CAPACITY
 
+HUNGER_SEEK_THRESHOLD = 50
+THIRST_SEEK_THRESHOLD = 50
+TIRED_SEEK_THRESHOLD = 50
+HUNGER_DAMAGE_THRESHOLD = 75
+THIRST_DAMAGE_THRESHOLD = 85
+TIRED_DAMAGE_THRESHOLD = 80
+HUNGER_DAMAGE_FACTOR = 0.2
+THIRST_DAMAGE_FACTOR = 0.3
+TIRED_DAMAGE_FACTOR = 0.1
+RABBIT_HUNGER_SATISFACTION = 100
+RABBIT_SIZE_FACTOR = 1/20
+WATER_DRINKING_AMOUNT = 0.00001 * WATER_POOL_CAPACITY
+
+EATING_AND_DRINKING_SLEEP_FACTOR = 0.3
+SLEEP_TIME = 8
+
+HEAL_AMOUNT = 4
+
+REPRODUCTION_TIME = 24*30 # Rabbits are pregnant for 30 days
+REPRODUCTION_COOLDOWN = 24*5 # Rabbits usually have to wait 5 days before being able to reproduce again
+NEW_BORN_TIME = 24*30
+NURSE_COOLDOWN = 24
+
 class Fox(organisms.Organism):
     """Defines the fox."""
     def __init__(self, ecosystem, x, y, female, adult=False, hunger=0,
@@ -85,10 +108,25 @@ class Fox(organisms.Organism):
         """Generates the tree for the fox."""
         tree = bt.Sequence()
         tree.add_child(self.ReduceMovementTimer(self))
+        tree.add_child(self.ReduceReproductionTimer(self))
+        tree.add_child(self.DenMovement(self))
+        tree.add_child(self.IncreaseHunger(self))
+        tree.add_child(self.IncreaseThirst(self))
+        tree.add_child(self.ChangeTired(self))
+        tree.add_child(self.HandleNursing(self))
+        tree.add_child(self.IncreaseAge(self))
+        tree.add_child(self.TakeDamage(self))
+        tree.add_child(self.ReplenishHealth(self))
 
         # Logic for the fox
         logic_fallback = bt.FallBack()
         tree.add_child(logic_fallback)
+
+        # Dying
+        die_sequence = bt.Sequence()
+        logic_fallback.add_child(die_sequence)
+        die_sequence.add_child(self.Dying(self))
+        die_sequence.add_child(self.Die(self))
 
         # Moving randomly
         random_movement_sequence = bt.Sequence()
@@ -110,6 +148,180 @@ class Fox(organisms.Organism):
 
         def action(self):
             self.__outer._movement_timer = max(0, self.__outer._movement_timer - 1)
+            self._status = bt.Status.SUCCESS
+
+    class ReduceReproductionTimer(bt.Action):
+        """Ticks down the reproduction timer for the fox."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            self.__outer.reproduction_timer = max(0, self.__outer.reproduction_timer - 1)
+            if self.__outer.reproduction_timer == 0 and self.__outer._adult:
+                self.__outer.can_reproduce = True
+            self._status = bt.Status.SUCCESS
+
+    class DenMovement(bt.Action):
+        """Updates whether the fox is in its den or not."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            den = self.__outer.den
+
+            if den is None:
+                self.__outer.in_den = False
+            else:
+                self.__outer.in_den = (x == den.x and y == den.y)
+            self._status = bt.Status.SUCCESS
+
+    class IncreaseHunger(bt.Action):
+        """Increases the fox's hunger."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            factor = 1 if not self.__outer._asleep else EATING_AND_DRINKING_SLEEP_FACTOR
+            if not self.__outer._stabilized_health:
+                self.__outer._hunger += factor * self.__outer._hunger_speed
+            self._status = bt.Status.SUCCESS
+
+    class IncreaseThirst(bt.Action):
+        """Increases the fox's thirst."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            factor = 1 if not self.__outer._asleep else EATING_AND_DRINKING_SLEEP_FACTOR
+            if not self.__outer._stabilized_health:
+                self.__outer._thirst += factor * self.__outer._thirst_speed
+            self._status = bt.Status.SUCCESS
+
+    class ChangeTired(bt.Action):
+        """Changes the fox's tiredness depending on if it is awake."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            if not self.__outer._asleep:
+                if not self.__outer._stabilized_health:
+                    self.__outer._tired += self.__outer._tired_speed
+            else:
+                self.__outer._tired = max(0, self.__outer._tired - TIRED_DAMAGE_THRESHOLD / SLEEP_TIME)
+                self.__outer._sleep_time += 1
+            self._status = bt.Status.SUCCESS
+
+    class HandleNursing(bt.Action):
+        """Handles nursing variables."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            if self.__outer.female:
+                if self.__outer._stop_nursing_timer > 0:
+                    self.__outer._stop_nursing_timer = max(0, self.__outer._stop_nursing_timer - 1)
+                    self.__outer._nurse_timer = max(0, self.__outer._nurse_timer - 1)
+            self._status = bt.Status.SUCCESS
+
+    class IncreaseAge(bt.Action):
+        """Increases the fox's age."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            self.__outer.age += 1
+            adult_age = 24*300
+
+            # Become adults
+            if not self.__outer._adult and self.__outer.age >= adult_age:
+                self.__outer._adult = True
+                self.__outer.can_reproduce = True
+                self.__outer.size = self.__outer._max_size
+                self.__outer._vision_range = self.__outer._max_vision_range
+                self.__outer._movement_cooldown = self.__outer._min_movement_cooldown
+
+            # Lerp values depending on age
+            if not self.__outer._adult:
+                self.__outer.size = helpers.Lerp(0, self.__outer._max_size, self.__outer.age / (adult_age))
+                for key in self.__outer._vision_range:
+                    self.__outer._vision_range[key] = min(self.__outer._max_vision_range[key], helpers.Lerp(0, self.__outer._max_vision_range[key], self.__outer.age / (NEW_BORN_TIME)))
+                self.__outer._movement_cooldown = helpers.Lerp(2 * self.__outer._min_movement_cooldown, self.__outer._min_movement_cooldown, self.__outer.age / (adult_age))
+
+
+            self._status = bt.Status.SUCCESS
+
+    class TakeDamage(bt.Action):
+        """Take damage from various sources."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            self._status = bt.Status.SUCCESS
+
+            # Hunger
+            hunger = self.__outer._hunger
+            if hunger >= HUNGER_DAMAGE_THRESHOLD:
+                self.__outer._health -= (hunger - HUNGER_DAMAGE_THRESHOLD) * HUNGER_DAMAGE_FACTOR
+
+            # Thirst
+            thirst = self.__outer._thirst
+            if thirst >= THIRST_DAMAGE_THRESHOLD:
+                self.__outer._thirst -= (thirst - THIRST_DAMAGE_THRESHOLD) * THIRST_DAMAGE_FACTOR
+
+            # Tiredness
+            tired = self.__outer._tired
+            if tired >= TIRED_DAMAGE_THRESHOLD:
+                self.__outer._tired -= (tired - TIRED_DAMAGE_THRESHOLD) * TIRED_DAMAGE_FACTOR
+
+    class ReplenishHealth(bt.Action):
+        """Replenish health if in a healthy condition."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            self._status = bt.Status.SUCCESS
+
+            hunger = self.__outer._hunger
+            thirst = self.__outer._thirst
+            tired = self.__outer._tired
+
+            if hunger < HUNGER_SEEK_THRESHOLD and thirst < THIRST_SEEK_THRESHOLD and tired < TIRED_SEEK_THRESHOLD and self.__outer._health > 0:
+                self.__outer._health += HEAL_AMOUNT
+
+    #########
+    # DYING #
+    #########
+
+    class Dying(bt.Condition):
+        """Check if the fox is dying."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer._health <= 0 or self.__outer.age >= self.__outer._life_span
+
+    class Die(bt.Action):
+        """Kill the fox."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            self.__outer._ecosystem.animal_map[x][y].remove(self.__outer)
             self._status = bt.Status.SUCCESS
 
     class CanMove(bt.Condition):
