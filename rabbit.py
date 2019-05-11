@@ -468,12 +468,12 @@ class Rabbit(organisms.Organism):
             # Thirst
             thirst = self.__outer._thirst
             if thirst >= THIRST_DAMAGE_THRESHOLD:
-                self.__outer._thirst -= (thirst - THIRST_DAMAGE_THRESHOLD) * THIRST_DAMAGE_FACTOR
+                self.__outer._health -= (thirst - THIRST_DAMAGE_THRESHOLD) * THIRST_DAMAGE_FACTOR
 
             # Tiredness
             tired = self.__outer._tired
             if tired >= TIRED_DAMAGE_THRESHOLD:
-                self.__outer._tired -= (tired - TIRED_DAMAGE_THRESHOLD) * TIRED_DAMAGE_FACTOR
+                self.__outer._health -= (tired - TIRED_DAMAGE_THRESHOLD) * TIRED_DAMAGE_FACTOR
 
     class ReplenishHealth(bt.Action):
         """Replenish health if in a healthy condition."""

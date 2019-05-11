@@ -28,9 +28,7 @@ BURROW_RABBIT_MAX_AMOUNT = 3
 HIVES_PER_TREE = 0.04
 HIVE_BEE_MIN_AMOUNT = 5
 HIVE_BEE_MAX_AMOUNT = 9
-DEN_PERCENTAGE = 0.001
-DEN_FOX_MIN_AMOUNT = 1
-DEN_FOX_MAX_AMOUNT = 2
+FOX_PERCENTAGE = 0.0025
 
 
 class Ecosystem():
@@ -176,25 +174,13 @@ class Ecosystem():
                         self.animal_map[x + dx][y + dy].append(rabbit)
 
                 # Foxes
-                if random.random() <= DEN_PERCENTAGE:
-                    den = Den(self, x, y)
-                    self.animal_map[x][y].append(den)
-                    fox_amount = random.randint(DEN_FOX_MIN_AMOUNT, DEN_FOX_MAX_AMOUNT)
-                    for _ in range(fox_amount):
-                        dx = random.randint(-3, 3)
-                        dy = random.randint(-3, 3)
+                if random.random() <= FOX_PERCENTAGE:
+                    fox = Fox(self, x, y,
+                              random.choice([True, False]),
+                              adult=True, age=random.randint(24*365, 24*365*4))
+                    self.animal_map[x][y].append(fox)
 
-                        if x + dx < 0 or x + dx >= self.width or y + dy < 0 or y + dy >= self.height:
-                            continue
 
-                        if self.water_map[x + dx][y + dy]:
-                            continue
-
-                        fox = Fox(self, x + dx, y + dy,
-                                  random.choice([True, False]),
-                                  adult=True, den=den,
-                                  age=random.randint(24*365, 24*365*4))
-                        self.animal_map[x + dx][y + dy].append(fox)
 
     def get_organisms_from_maps(self):
         """Looks through the maps to find organisms, and returns these in a list."""
