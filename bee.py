@@ -5,13 +5,19 @@ import behaviour_tree as bt
 
 
 BEE_MIN_NECTAR_IN_FLOWER = 5
+HUNGER_DAMAGE_THRESHOLD = 75
+HUNGER_DAMAGE_FACTOR = 0.5
+HIVE_SEEK_THRESHOLD = 30
+HUNGER_TOLERANCE = 20
+NECTAR_HUNGER_SATISFACITON = 20
+NECTAR_EAT_PORTION = 0.05
 POLLEN_AMOUNT = 2
 
 
 class Bee(organisms.Organism):
     """Defines the bee."""
-    def __init__(self, ecosystem, x, y, hunger=0, tired=0, health=100, life_span=24*150,
-                hunger_speed=50/36, tired_speed=50/36,
+    def __init__(self, ecosystem, x, y, hunger=0, health=100, life_span=24*150,
+                hunger_speed=1,
                 vision_range={'left': 1, 'right': 1, 'up': 1, 'down': 1},
                 smell_range={'left': 8, 'right': 8, 'up': 8, 'down': 8},
                 hive=None, in_hive=False, movement_cooldown=4, age=0, scout=False,
@@ -21,18 +27,16 @@ class Bee(organisms.Organism):
         self.size = 0
 
         self._hunger = hunger
-        self._tired = tired
         self._health = health
         self._life_span = life_span
         self._hunger_speed = hunger_speed
-        self._tired_speed = tired_speed
         self._hive = hive
         self.in_hive = in_hive
         self._movement_cooldown = movement_cooldown
         self._age = age
         self._nectar_amount = 0
         self._nectar_capacity = nectar_capacity
-
+        self._hunger_speed = hunger_speed
         self._movement_timer = self._movement_cooldown
         self._target_location = None
         self.food_location = None
@@ -67,6 +71,20 @@ class Bee(organisms.Organism):
 
         sequence = bt.Sequence()
         logic_fallback = bt.FallBack()
+        eat_sequence = bt.Sequence()
+        eat_sequence.add_child(self.NeedsToEat(self))
+        eat_fallback = bt.FallBack()
+        eat_sequence.add_child(eat_fallback)
+        eat_in_hive_sequence = bt.Sequence()
+        eat_own_food_sequence = bt.Sequence()
+        eat_fallback.add_child(eat_in_hive_sequence)
+        eat_fallback.add_child(eat_own_food_sequence)
+        eat_in_hive_sequence.add_child(self.InHive(self))
+        eat_in_hive_sequence.add_child(self.HiveHasFood(self))
+        eat_in_hive_sequence.add_child(self.EatInHive(self))
+        eat_own_food_sequence.add_child(self.HaveFood(self))
+        eat_own_food_sequence.add_child(self.EatOwnFood(self))
+        logic_fallback.add_child(eat_sequence)
         scout_sequence = bt.Sequence()
         recruit_sequence = bt.Sequence()
         logic_fallback.add_child(scout_sequence)
@@ -178,7 +196,11 @@ class Bee(organisms.Organism):
         sequence.add_child(self.MakeScoutIfNeeded(self))
         sequence.add_child(self.ReduceMovementTimer(self))
         sequence.add_child(self.IncreaseAge(self))
+        sequence.add_child(self.IncreaseHunger(self))
+        sequence.add_child(self.TakeDamage(self))
         sequence.add_child(self.UpdateOrientationMap(self))
+
+
         sequence.add_child(logic_fallback)
 
         tree.add_child(is_dead_sequence)
@@ -256,6 +278,50 @@ class Bee(organisms.Organism):
             # TODO: change size according to age
             self.__outer._age += 1
             self._status = bt.Status.SUCCESS
+
+
+    class IncreaseHunger(bt.Action):
+        """Increases the bee's hunger."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            self.__outer._hunger += self.__outer._hunger_speed
+            self._status = bt.Status.SUCCESS
+
+    class TakeDamage(bt.Action):
+        """Take damage from various sources."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            self._status = bt.Status.SUCCESS
+
+            # Hunger
+            hunger = self.__outer._hunger
+            if hunger >= HUNGER_DAMAGE_THRESHOLD:
+                self.__outer._health -= (hunger - HUNGER_DAMAGE_THRESHOLD) * HUNGER_DAMAGE_FACTOR
+
+
+    class ReplenishHealth(bt.Action):
+        """Replenish health if in a healthy condition."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            self._status = bt.Status.SUCCESS
+
+            hunger = self.__outer._hunger
+            thirst = self.__outer._thirst
+            tired = self.__outer._tired
+
+            if hunger < HUNGER_SEEK_THRESHOLD and thirst < THIRST_SEEK_THRESHOLD and tired < TIRED_SEEK_THRESHOLD and self.__outer._health > 0:
+                self.__outer._health += HEAL_AMOUNT
+
+
 
 
     class UpdateOrientationMap(bt.Action):
@@ -504,6 +570,52 @@ class Bee(organisms.Organism):
                                 return
             self._status = bt.Status.FAIL
 
+
+    class SetFoodAsTarget(bt.Action):
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            self.__outer._target_location = self.__outer.food_location
+            self._status = bt.Status.SUCCESS
+
+
+    class NeedsToEat(bt.Condition):
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer._hunger >= HUNGER_TOLERANCE
+
+    class HiveHasFood(bt.Condition):
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer._hive.food >= NECTAR_EAT_PORTION
+
+    class EatInHive(bt.Action):
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            self.__outer._hunger = min(0, self.__outer._hunger - NECTAR_HUNGER_SATISFACITON)
+            self.__outer._hive.food -= NECTAR_EAT_PORTION
+            self._status = bt.Status.SUCCESS
+
+    class EatOwnFood(bt.Action):
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            self.__outer._hunger = min(0, self.__outer._hunger - NECTAR_HUNGER_SATISFACITON)
+            self.__outer._nectar_amount -= NECTAR_EAT_PORTION
+            self._status = bt.Status.SUCCESS
 
     class SetFoodAsTarget(bt.Action):
         def __init__(self, outer):
