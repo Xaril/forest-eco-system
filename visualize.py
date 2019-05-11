@@ -2,6 +2,7 @@ import arcade
 from ecosystem import Ecosystem
 from organisms import Type
 import matplotlib.pyplot as plt
+import argparse
 
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 800
@@ -43,15 +44,13 @@ class Game(arcade.Window):
             self.sprite_list.append(sprite)
 
 
-def plot():
+def plot(steps):
     populations = {
         'rabbit': [],
         'bee': [],
         'fox': [],
         'flower': []
     }
-
-    steps = 20000
 
     ecosystem = Ecosystem(int(SCREEN_WIDTH/CELL_WIDTH), int(SCREEN_HEIGHT/CELL_HEIGHT))
 
@@ -92,9 +91,27 @@ def plot():
 
 
 def main():
-    plot_data = True
-    if plot_data:
-        plot()
+
+    parser = argparse.ArgumentParser(description='Simulates an ecosystem.')
+    parser.add_argument(
+        '--plot',
+        dest='plot',
+        help='Plot the population amount after a set amount of time steps instead ' +
+        'of visualizing it (default False).',
+        action='store_true'
+    )
+    parser.add_argument(
+        '--steps',
+        dest='steps',
+        help='The number of steps to simulate for (if --plot is set). Default 100.',
+        type=int,
+        default=100
+    )
+
+    args = parser.parse_args()
+
+    if args.plot:
+        plot(args.steps)
     else:
         game = Game(SCREEN_WIDTH, SCREEN_HEIGHT)
         game.setup()
