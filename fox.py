@@ -24,9 +24,10 @@ SLEEP_TIME = 10
 
 HEAL_AMOUNT = 4
 
-REPRODUCTION_TIME = 24*30 # foxs are pregnant for 30 days
-REPRODUCTION_COOLDOWN = 24*5 # foxs usually have to wait 5 days before being able to reproduce again
-NEW_BORN_TIME = 24*30
+REPRODUCTION_TIME = 24*70 # foxs are pregnant for 70 days
+REPRODUCTION_COOLDOWN = 24*180 # foxs usually mate once per year, we double that
+NEW_BORN_TIME = 24*35
+# TODO: Add new born follow mom time, about four months
 NURSE_COOLDOWN = 24
 
 class Fox(organisms.Organism):
@@ -131,7 +132,8 @@ class Fox(organisms.Organism):
         die_sequence.add_child(self.Dying(self))
         die_sequence.add_child(self.Die(self))
 
-        # New born logic
+        # New born
+        logic_fallback.add_child(self.NewBorn(self))
         # TODO: Implement it.
 
         # Eating
@@ -177,6 +179,30 @@ class Fox(organisms.Organism):
         # Nursing
 
         # Giving birth
+        birth_sequence = bt.Sequence()
+        logic_fallback.add_child(birth_sequence)
+        birth_sequence.add_child(self.Pregnant(self))
+
+        birth_fallback = bt.FallBack()
+        birth_sequence.add_child(birth_fallback)
+
+        birth_time_sequence = bt.Sequence()
+        birth_fallback.add_child(birth_time_sequence)
+        birth_time_sequence.add_child(self.TimeToGiveBirth(self))
+        birth_time_sequence.add_child(self.GiveBirth(self))
+
+        close_to_birth_sequence = bt.Sequence()
+        birth_fallback.add_child(close_to_birth_sequence)
+        close_to_birth_sequence.add_child(self.CloseToBirth(self))
+
+        close_to_birth_fallback = bt.FallBack()
+        close_to_birth_sequence.add_child(close_to_birth_fallback)
+        close_to_birth_fallback.add_child(self.InDen(self))
+
+        close_to_birth_burrow_sequence = bt.Sequence()
+        close_to_birth_fallback.add_child(close_to_birth_burrow_sequence)
+        close_to_birth_burrow_sequence.add_child(self.StabilizeHealth(self))
+        close_to_birth_burrow_sequence.add_child(self.CreateDen(self))
 
         # Reproducing
         reproduction_sequence = bt.Sequence()
@@ -374,12 +400,12 @@ class Fox(organisms.Organism):
             # Thirst
             thirst = self.__outer._thirst
             if thirst >= THIRST_DAMAGE_THRESHOLD:
-                self.__outer._thirst -= (thirst - THIRST_DAMAGE_THRESHOLD) * THIRST_DAMAGE_FACTOR
+                self.__outer._health -= (thirst - THIRST_DAMAGE_THRESHOLD) * THIRST_DAMAGE_FACTOR
 
             # Tiredness
             tired = self.__outer._tired
             if tired >= TIRED_DAMAGE_THRESHOLD:
-                self.__outer._tired -= (tired - TIRED_DAMAGE_THRESHOLD) * TIRED_DAMAGE_FACTOR
+                self.__outer._health -= (tired - TIRED_DAMAGE_THRESHOLD) * TIRED_DAMAGE_FACTOR
 
     class ReplenishHealth(bt.Action):
         """Replenish health if in a healthy condition."""
@@ -421,6 +447,19 @@ class Fox(organisms.Organism):
             y = self.__outer.y
             self.__outer._ecosystem.animal_map[x][y].remove(self.__outer)
             self._status = bt.Status.SUCCESS
+
+    ############
+    # NEW BORN #
+    ############
+
+    class NewBorn(bt.Condition):
+        """Check if the fox is newly born."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer.age <= NEW_BORN_TIME
 
     ############
     # SLEEPING #
@@ -614,6 +653,107 @@ class Fox(organisms.Organism):
 
         def action(self):
             self.__outer._asleep = True
+            self._status = bt.Status.SUCCESS
+
+    ################
+    # GIVING BIRTH #
+    ################
+
+    class Pregnant(bt.Condition):
+        """Determines if the fox is pregnant or not."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer.pregnant
+
+    class TimeToGiveBirth(bt.Condition):
+        """Determines if the time has come to give birth."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer.reproduction_timer <= REPRODUCTION_COOLDOWN
+
+    class GiveBirth(bt.Action):
+        """The fox gives birth."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            self.__outer._stabilized_health = False
+            self.__outer.pregnant = False
+            self.__outer._stop_nursing_timer = NEW_BORN_TIME
+            self.__outer._nurse_timer = 0
+
+            minimum_amount = 4
+            maximum_amount = 6
+
+            x = self.__outer.x
+            y = self.__outer.y
+            den = self.__outer.den
+            ecosystem = self.__outer._ecosystem
+
+            if den is not None:
+                for _ in range(random.randint(minimum_amount, maximum_amount)):
+                    gender = random.choice([True, False])
+                    fox = Fox(ecosystem, x, y, gender, adult=False, den=den, in_den=True)
+                    ecosystem.animal_map[x][y].append(fox)
+
+                self._status = bt.Status.SUCCESS
+            else:
+                self._status = bt.Status.FAIL
+
+    class CloseToBirth(bt.Condition):
+        """Determines if the fox is about to give birth."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer.reproduction_timer <= REPRODUCTION_COOLDOWN + 24*2 # Two days prior to giving birth
+
+    class InDen(bt.Condition):
+        """Determines if the fox is in its burrow."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer.in_den
+
+    class StabilizeHealth(bt.Action):
+        """Stabilizes the fox's health for the remainder of the pregnancy."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            self.__outer._stabilized_health = True
+            self._status = bt.Status.SUCCESS
+
+    class CreateDen(bt.Action):
+        """The fox creates a new den."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            from den import Den
+
+            if not self.__outer.in_den:
+                x = self.__outer.x
+                y = self.__outer.y
+                den = Den(self.__outer._ecosystem, x, y)
+                self.__outer._ecosystem.animal_map[x][y].insert(0, den)
+                self.__outer.den = den
+
+                # Increase hunger due to having to dig a hole
+                if not self.__outer._stabilized_health:
+                    self.__outer._hunger += 3 * self.__outer._hunger_speed
             self._status = bt.Status.SUCCESS
 
     ################
