@@ -15,8 +15,8 @@ TIRED_DAMAGE_THRESHOLD = 80
 HUNGER_DAMAGE_FACTOR = 0.2
 THIRST_DAMAGE_FACTOR = 0.3
 TIRED_DAMAGE_FACTOR = 0.1
-RABBIT_HUNGER_SATISFACTION = 100
-RABBIT_SIZE_FACTOR = 1/20
+fox_HUNGER_SATISFACTION = 100
+fox_SIZE_FACTOR = 1/20
 WATER_DRINKING_AMOUNT = 0.00001 * WATER_POOL_CAPACITY
 
 EATING_AND_DRINKING_SLEEP_FACTOR = 0.3
@@ -24,8 +24,8 @@ SLEEP_TIME = 10
 
 HEAL_AMOUNT = 4
 
-REPRODUCTION_TIME = 24*30 # Rabbits are pregnant for 30 days
-REPRODUCTION_COOLDOWN = 24*5 # Rabbits usually have to wait 5 days before being able to reproduce again
+REPRODUCTION_TIME = 24*30 # foxs are pregnant for 30 days
+REPRODUCTION_COOLDOWN = 24*5 # foxs usually have to wait 5 days before being able to reproduce again
 NEW_BORN_TIME = 24*30
 NURSE_COOLDOWN = 24
 
@@ -173,6 +173,58 @@ class Fox(organisms.Organism):
         logic_fallback.add_child(tired_sequence)
         tired_sequence.add_child(self.Tired(self))
         tired_sequence.add_child(self.Sleep(self))
+
+        # Nursing
+
+        # Giving birth
+
+        # Reproducing
+        reproduction_sequence = bt.Sequence()
+        logic_fallback.add_child(reproduction_sequence)
+        reproduction_sequence.add_child(self.CanReproduce(self))
+
+        reproduction_fallback = bt.FallBack()
+        reproduction_sequence.add_child(reproduction_fallback)
+
+        partner_sequence = bt.Sequence()
+        reproduction_fallback.add_child(partner_sequence)
+        partner_sequence.add_child(self.HavePartner(self))
+        partner_sequence.add_child(self.PartnerCanReproduce(self))
+
+        partner_reproduction_fallback = bt.FallBack()
+        partner_sequence.add_child(partner_reproduction_fallback)
+
+        partner_adjacent_sequence = bt.Sequence()
+        partner_reproduction_fallback.add_child(partner_adjacent_sequence)
+        partner_adjacent_sequence.add_child(self.PartnerAdjacent(self))
+        partner_adjacent_sequence.add_child(self.Reproduce(self))
+
+        partner_nearby_sequence = bt.Sequence()
+        partner_reproduction_fallback.add_child(partner_nearby_sequence)
+        partner_nearby_sequence.add_child(self.PartnerNearby(self))
+        partner_nearby_sequence.add_child(self.CanMove(self))
+        partner_nearby_sequence.add_child(self.FindPathToPartner(self))
+        partner_nearby_sequence.add_child(self.MoveOnPath(self))
+
+        no_partner_sequence = bt.Sequence()
+        reproduction_fallback.add_child(no_partner_sequence)
+        no_partner_sequence.add_child(self.NoPartner(self))
+
+        no_partner_fallback = bt.FallBack()
+        no_partner_sequence.add_child(no_partner_fallback)
+
+        adjacent_fox_sequence = bt.Sequence()
+        no_partner_fallback.add_child(adjacent_fox_sequence)
+        adjacent_fox_sequence.add_child(self.AvailableFoxAdjacent(self))
+        adjacent_fox_sequence.add_child(self.MakePartner(self))
+        adjacent_fox_sequence.add_child(self.Reproduce(self))
+
+        fox_nearby_sequence = bt.Sequence()
+        no_partner_fallback.add_child(fox_nearby_sequence)
+        fox_nearby_sequence.add_child(self.AvailableFoxNearby(self))
+        fox_nearby_sequence.add_child(self.CanMove(self))
+        fox_nearby_sequence.add_child(self.FindPathToFox(self))
+        fox_nearby_sequence.add_child(self.MoveOnPath(self))
 
         # Moving randomly
         random_movement_sequence = bt.Sequence()
@@ -563,6 +615,228 @@ class Fox(organisms.Organism):
         def action(self):
             self.__outer._asleep = True
             self._status = bt.Status.SUCCESS
+
+    ################
+    # REPRODUCTION #
+    ################
+
+    class CanReproduce(bt.Condition):
+        """Determines if the fox can reproduce."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer.can_reproduce
+
+    class HavePartner(bt.Condition):
+        """Determines if the fox has a partner."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer.partner is not None
+
+    class PartnerCanReproduce(bt.Condition):
+        """Determines if the fox's partner can reproduce."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer.partner.can_reproduce
+
+    class PartnerAdjacent(bt.Condition):
+        """Determines if the partner is in the same cell as the fox."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            partner = self.__outer.partner
+
+            return x == partner.x and y == partner.y
+
+    class Reproduce(bt.Action):
+        """The fox and its partner do the funky stuff."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            partner = self.__outer.partner
+
+            if self.__outer.female:
+                self.__outer.pregnant = True
+                self.__outer.reproduction_timer = REPRODUCTION_COOLDOWN + REPRODUCTION_TIME
+                self.__outer.can_reproduce = False
+            else:
+                partner.pregnant = True
+                partner.reproduction_timer = REPRODUCTION_COOLDOWN + REPRODUCTION_TIME
+                partner.can_reproduce = False
+            self._status = bt.Status.SUCCESS
+
+    class PartnerNearby(bt.Condition):
+        """Determines if the fox's partner is within vision range."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            vision_range = self.__outer._vision_range
+            ecosystem = self.__outer._ecosystem
+            partner = self.__outer.partner
+
+            for dx in range(-int(vision_range['left']), int(vision_range['right'])+1):
+                for dy in range(-int(vision_range['up']), int(vision_range['down'])+1):
+                    if x + dx < 0 or x + dx >= ecosystem.width or y + dy < 0 or y + dy >= ecosystem.height:
+                        continue
+
+                    if x + dx == partner.x and y + dy == partner.y:
+                        return True
+            return False
+
+    class FindPathToPartner(bt.Action):
+        """Finds a path to the fox's partner."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            ecosystem = self.__outer._ecosystem
+            partner = self.__outer.partner
+
+            path = astar(self.__outer, ecosystem.water_map, ecosystem.plant_map, ecosystem.animal_map,
+                         x, y, partner.x, partner.y, max_path_length=10)
+
+            if len(path) > 0:
+                path.pop(0)
+                self.__outer._movement_path = path
+                self._status = bt.Status.SUCCESS
+            else:
+                self.__outer._movement_path = None
+                self._status = bt.Status.FAIL
+
+    class NoPartner(bt.Condition):
+        """Determines if the fox has no partner."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer.partner is None
+
+    class AvailableFoxAdjacent(bt.Condition):
+        """Determines if there is a fox with no partner that can reproduce
+        that is on the same cell as the fox."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            ecosystem = self.__outer._ecosystem
+
+            for animal in ecosystem.animal_map[x][y]:
+                if animal is not self.__outer:
+                    if animal.type == organisms.Type.FOX:
+                        if not animal.partner and animal.can_reproduce and animal.female != self.__outer.female:
+                            return True
+            return False
+
+    class MakePartner(bt.Action):
+        """Make the available fox this fox's partner and vice versa."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            ecosystem = self.__outer._ecosystem
+
+            self._status = bt.Status.FAIL
+            for animal in ecosystem.animal_map[x][y]:
+                if animal is not self.__outer:
+                    if animal.type == organisms.Type.FOX:
+                        if not animal.partner and animal.can_reproduce and animal.female is not self.__outer.female:
+                            self._status = bt.Status.SUCCESS
+                            self.__outer.partner = animal
+                            animal.partner = self.__outer
+
+    class AvailableFoxNearby(bt.Condition):
+        """Determines if there is a fox in this fox's vision range
+        that can reproduce and has no partner."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            vision_range = self.__outer._vision_range
+            ecosystem = self.__outer._ecosystem
+
+            for dx in range(-int(vision_range['left']), int(vision_range['right'])+1):
+                for dy in range(-int(vision_range['up']), int(vision_range['down'])+1):
+                    if x + dx < 0 or x + dx >= ecosystem.width or y + dy < 0 or y + dy >= ecosystem.height:
+                        continue
+
+                    for animal in ecosystem.animal_map[x + dx][y + dy]:
+                        if animal is not self.__outer:
+                            if animal.type == organisms.Type.FOX:
+                                if not animal.partner and animal.can_reproduce and animal.female is not self.__outer.female:
+                                    return True
+            return False
+
+    class FindPathToFox(bt.Action):
+        """Finds a path to the available fox."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            vision_range = self.__outer._vision_range
+            ecosystem = self.__outer._ecosystem
+
+            closest_rabbit = None
+            best_distance = math.inf
+
+            for dx in range(-int(vision_range['left']), int(vision_range['right'])+1):
+                for dy in range(-int(vision_range['up']), int(vision_range['down'])+1):
+                    if x + dx < 0 or x + dx >= ecosystem.width or y + dy < 0 or y + dy >= ecosystem.height:
+                        continue
+
+                    distance = helpers.EuclidianDistance(x, y, x + dx, y + dy)
+                    if distance < best_distance:
+                        for animal in ecosystem.animal_map[x + dx][y + dy]:
+                            if animal is not self.__outer:
+                                if animal.type == organisms.Type.FOX:
+                                    if not animal.partner and animal.can_reproduce and animal.female is not self.__outer.female:
+                                        closest_rabbit = animal
+                                        best_distance = distance
+                                        break
+
+            path = astar(self.__outer, ecosystem.water_map, ecosystem.plant_map, ecosystem.animal_map,
+                         x, y, closest_rabbit.x, closest_rabbit.y, max_path_length=10)
+
+            if len(path) > 0:
+                path.pop(0)
+                self.__outer._movement_path = path
+                self._status = bt.Status.SUCCESS
+            else:
+                self.__outer._movement_path = None
+                self._status = bt.Status.FAIL
 
     ###################
     # RANDOM MOVEMENT #
