@@ -20,7 +20,7 @@ RABBIT_SIZE_FACTOR = 1/20
 WATER_DRINKING_AMOUNT = 0.00001 * WATER_POOL_CAPACITY
 
 EATING_AND_DRINKING_SLEEP_FACTOR = 0.3
-SLEEP_TIME = 8
+SLEEP_TIME = 10
 
 HEAL_AMOUNT = 4
 
@@ -110,7 +110,10 @@ class Fox(organisms.Organism):
         tree.add_child(self.ReduceMovementTimer(self))
         tree.add_child(self.ReduceReproductionTimer(self))
         tree.add_child(self.DenMovement(self))
-        tree.add_child(self.IncreaseHunger(self))
+
+        # TEMPORARILY DISABLED TO ALLOW FOR TESTING OF OTHER THINGS
+        #tree.add_child(self.IncreaseHunger(self))
+
         tree.add_child(self.IncreaseThirst(self))
         tree.add_child(self.ChangeTired(self))
         tree.add_child(self.HandleNursing(self))
@@ -127,6 +130,25 @@ class Fox(organisms.Organism):
         logic_fallback.add_child(die_sequence)
         die_sequence.add_child(self.Dying(self))
         die_sequence.add_child(self.Die(self))
+
+        # New born logic
+        # TODO: Implement it.
+
+        # Sleeping
+        sleep_sequence = bt.Sequence()
+        logic_fallback.add_child(sleep_sequence)
+        sleep_sequence.add_child(self.Sleeping(self))
+
+        sleep_fallback = bt.FallBack()
+        sleep_sequence.add_child(sleep_fallback)
+        sleep_fallback.add_child(self.ShouldNotWakeUp(self))
+        sleep_fallback.add_child(self.WakeUp(self))
+
+        # Tiredness
+        tired_sequence = bt.Sequence()
+        logic_fallback.add_child(tired_sequence)
+        tired_sequence.add_child(self.Tired(self))
+        tired_sequence.add_child(self.Sleep(self))
 
         # Moving randomly
         random_movement_sequence = bt.Sequence()
@@ -324,6 +346,39 @@ class Fox(organisms.Organism):
             self.__outer._ecosystem.animal_map[x][y].remove(self.__outer)
             self._status = bt.Status.SUCCESS
 
+    ############
+    # SLEEPING #
+    ############
+
+    class Sleeping(bt.Condition):
+        """Determines if the fox is sleeping or not."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer._asleep
+
+    class ShouldNotWakeUp(bt.Condition):
+        """Determines if the fox should continue to sleep."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer._sleep_time < SLEEP_TIME
+
+    class WakeUp(bt.Action):
+        """Wakes up the fox."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            self.__outer._asleep = False
+            self.__outer._sleep_time = 0
+            self._status = bt.Status.SUCCESS
+
     class CanMove(bt.Condition):
         """Check if the fox can move."""
         def __init__(self, outer):
@@ -332,6 +387,29 @@ class Fox(organisms.Organism):
 
         def condition(self):
             return self.__outer._movement_timer == 0
+
+    #############
+    # TIREDNESS #
+    #############
+
+    class Tired(bt.Condition):
+        """Determines if the fox is tired."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return not self.__outer._stabilized_health and self.__outer._tired >= TIRED_SEEK_THRESHOLD
+
+    class Sleep(bt.Action):
+        """Fox goes to sleep."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            self.__outer._asleep = True
+            self._status = bt.Status.SUCCESS
 
     ###################
     # RANDOM MOVEMENT #
