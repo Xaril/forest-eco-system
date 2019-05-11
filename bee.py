@@ -10,7 +10,7 @@ POLLEN_AMOUNT = 2
 
 class Bee(organisms.Organism):
     """Defines the bee."""
-    def __init__(self, ecosystem, x, y, hunger=0, tired=0, health=100, life_span=24*1,
+    def __init__(self, ecosystem, x, y, hunger=0, tired=0, health=100, life_span=24*150,
                 hunger_speed=50/36, tired_speed=50/36,
                 vision_range={'left': 1, 'right': 1, 'up': 1, 'down': 1},
                 smell_range={'left': 8, 'right': 8, 'up': 8, 'down': 8},
@@ -226,12 +226,12 @@ class Bee(organisms.Organism):
                 self.__outer._scout = True
                 self.__outer._smell_range = {'left': 8, 'right': 8, 'up': 8, 'down': 8}
                 self.__outer._orientation_map = []
+                ecosystem = self.__outer._ecosystem
                 for x in range(ecosystem.width):
-                    self._orientation_map.append([])
+                    self.__outer._orientation_map.append([])
                     for y in range(ecosystem.height):
-                        self._orientation_map[x].append(False)
+                        self.__outer._orientation_map[x].append(False)
                 self.__outer._hive.has_scout = True
-                print('new scout made')
 
             self._status = bt.Status.SUCCESS
 

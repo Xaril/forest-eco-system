@@ -123,11 +123,11 @@ class Ecosystem():
                         hive = Hive(self, x, y)
                         self.animal_map[x][y].append(hive)
                         bee_amount = random.randint(HIVE_BEE_MIN_AMOUNT, HIVE_BEE_MAX_AMOUNT)
-                        bee = Bee(self, x, y, hive=hive, scout=True)
+                        bee = Bee(self, x, y, hive=hive, scout=True, age=random.randint(0,24*150))
                         hive.bees.append(bee)
                         self.animal_map[x][y].append(bee)
                         for _ in range(bee_amount):
-                            bee = Bee(self, x, y, hive=hive, scout=False)
+                            bee = Bee(self, x, y, hive=hive, scout=False,age=random.randint(0,24*150))
                             self.animal_map[x][y].append(bee)
                             hive.bees.append(bee)
                 elif random.random() <= GRASS_INIT_PERCENTAGE:

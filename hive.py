@@ -4,7 +4,7 @@ import behaviour_tree as bt
 
 HIVE_FOOD_CONSUMPTION = 0.1
 HIVE_BEE_MAKING_THRESHOLD = 101
-BEE_FOOD_COST = 10
+BEE_FOOD_COST = 5
 
 class Hive(organisms.Organism):
     """Defines the hive, which is just an immovable object."""
@@ -30,7 +30,7 @@ class Hive(organisms.Organism):
         sequence = bt.Sequence()
         sequence.add_child(self.DecreaseFood(self))
         create_bee_sequence = bt.Sequence()
-        create_bee_sequence.add_child(self.CanCreateBee(self))
+        create_bee_sequence.add_child(self.ShouldCreateBee(self))
         create_bee_sequence.add_child(self.HaveEnoughtRoom(self))
         create_bee_sequence.add_child(self.CreateBee(self))
         sequence.add_child(create_bee_sequence)
@@ -79,14 +79,15 @@ class Hive(organisms.Organism):
 
 
 
-    class CanCreateBee(bt.Condition):
+    class ShouldCreateBee(bt.Condition):
         """Check if the hive can create a bee"""
         def __init__(self, outer):
             super().__init__()
             self.__outer = outer
 
         def condition(self):
-            return self.__outer.food >= HIVE_BEE_MAKING_THRESHOLD or (self.__outer.food > BEE_FOOD_COST and len(self.__outer.bees) <= 5 )
+            #print(self.__outer.food , (self.__outer.food >= BEE_FOOD_COST, len(self.__outer.bees) <= 5 ))
+            return self.__outer.food >= HIVE_BEE_MAKING_THRESHOLD or (self.__outer.food >= BEE_FOOD_COST and len(self.__outer.bees) <= 5 )
 
 
     class HaveEnoughtRoom(bt.Condition):
