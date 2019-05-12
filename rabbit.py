@@ -79,7 +79,6 @@ class Rabbit(organisms.Organism):
 
         # TODO:
         #     * Genetic variables
-        #     * Pooping
 
         self.can_reproduce = self._adult
         self.pregnant = False

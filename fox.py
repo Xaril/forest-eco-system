@@ -82,6 +82,9 @@ class Fox(organisms.Organism):
         self._stop_nursing_timer = 0
 
         self.mother = mother
+        self.mother_drinking = False
+        self.mother_sleeping = False
+        self.children = []
 
         self.den = den
         self.in_den = False
@@ -123,6 +126,7 @@ class Fox(organisms.Organism):
         tree.add_child(self.IncreaseAge(self))
         tree.add_child(self.TakeDamage(self))
         tree.add_child(self.ReplenishHealth(self))
+        tree.add_child(self.HandleChildrenList(self))
 
         # Logic for the fox
         logic_fallback = bt.FallBack()
@@ -137,6 +141,16 @@ class Fox(organisms.Organism):
         # New born
         logic_fallback.add_child(self.NewBorn(self))
 
+        # Sleeping
+        sleep_sequence = bt.Sequence()
+        logic_fallback.add_child(sleep_sequence)
+        sleep_sequence.add_child(self.Sleeping(self))
+
+        sleep_fallback = bt.FallBack()
+        sleep_sequence.add_child(sleep_fallback)
+        sleep_fallback.add_child(self.ShouldNotWakeUp(self))
+        sleep_fallback.add_child(self.WakeUp(self))
+
         # Cub
         cub_sequence = bt.Sequence()
         logic_fallback.add_child(cub_sequence)
@@ -145,13 +159,30 @@ class Fox(organisms.Organism):
         cub_fallback = bt.FallBack()
         cub_sequence.add_child(cub_fallback)
 
-        #adjacent_water_sequence = bt.Sequence()
-        #cub_fallback.add_child(adjacent_water_sequence)
-        #adjacent_water_sequence.add_child(self.WaterAdjacent(self))
-        #adjacent_water_sequence.add_child(self.Drink(self))
+        drink_sequence = bt.Sequence()
+        cub_fallback.add_child(drink_sequence)
+        drink_sequence.add_child(self.MotherDrinking(self))
 
-        #mother_sleeping_sequence = bt.Sequence()
-        #cub_fallback.add_child(mother_sleeping_sequence)
+        drink_fallback = bt.FallBack()
+        drink_sequence.add_child(drink_fallback)
+
+        adjacent_water_sequence = bt.Sequence()
+        drink_fallback.add_child(adjacent_water_sequence)
+        adjacent_water_sequence.add_child(self.WaterAdjacent(self))
+        adjacent_water_sequence.add_child(self.Drink(self))
+
+        water_nearby_sequence = bt.Sequence()
+        drink_fallback.add_child(water_nearby_sequence)
+        # Might want foxes to only know about water they've seen,
+        # instead of knowing about water globally
+        water_nearby_sequence.add_child(self.CanMove(self))
+        water_nearby_sequence.add_child(self.FindPathToWater(self))
+        water_nearby_sequence.add_child(self.MoveOnPath(self))
+
+        mother_sleeping_sequence = bt.Sequence()
+        cub_fallback.add_child(mother_sleeping_sequence)
+        mother_sleeping_sequence.add_child(self.MotherSleeping(self))
+        mother_sleeping_sequence.add_child(self.Sleep(self))
 
         follow_mother_sequence = bt.Sequence()
         cub_fallback.add_child(follow_mother_sequence)
@@ -184,16 +215,6 @@ class Fox(organisms.Organism):
         water_nearby_sequence.add_child(self.CanMove(self))
         water_nearby_sequence.add_child(self.FindPathToWater(self))
         water_nearby_sequence.add_child(self.MoveOnPath(self))
-
-        # Sleeping
-        sleep_sequence = bt.Sequence()
-        logic_fallback.add_child(sleep_sequence)
-        sleep_sequence.add_child(self.Sleeping(self))
-
-        sleep_fallback = bt.FallBack()
-        sleep_sequence.add_child(sleep_fallback)
-        sleep_fallback.add_child(self.ShouldNotWakeUp(self))
-        sleep_fallback.add_child(self.WakeUp(self))
 
         # Tiredness
         tired_sequence = bt.Sequence()
@@ -465,6 +486,17 @@ class Fox(organisms.Organism):
             if hunger < HUNGER_SEEK_THRESHOLD and thirst < THIRST_SEEK_THRESHOLD and tired < TIRED_SEEK_THRESHOLD and self.__outer._health > 0:
                 self.__outer._health = min(100, self.__outer._health + HEAL_AMOUNT)
 
+    class HandleChildrenList(bt.Action):
+        """Check if children are big enough to take care of themselves."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            self._status = bt.Status.SUCCESS
+            children = self.__outer.children
+            self.__outer.children = [child for child in children if child.age < NEW_BORN_TIME + NEW_BORN_FOLLOW_TIME]
+
     #########
     # DYING #
     #########
@@ -515,6 +547,15 @@ class Fox(organisms.Organism):
 
         def condition(self):
             return self.__outer.age <= NEW_BORN_TIME + NEW_BORN_FOLLOW_TIME
+
+    class MotherDrinking(bt.Condition):
+        """Check if the fox's mother has been drinking water."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer.mother_drinking
 
     class CanMove(bt.Condition):
         """Check if the fox can move."""
@@ -576,6 +617,15 @@ class Fox(organisms.Organism):
                     self.__outer.y = y
                 else:
                     self._status = bt.Status.FAIL
+
+    class MotherSleeping(bt.Condition):
+        """Check if the fox's mother has been sleeping."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer.mother_sleeping
 
     ############
     # SLEEPING #
@@ -677,7 +727,11 @@ class Fox(organisms.Organism):
                 if ecosystem.water_map[x + dx][y + dy]:
                     ecosystem.water_map[x + dx][y + dy].water_amount -= WATER_DRINKING_AMOUNT
                     self.__outer._thirst = 0
+                    for child in self.__outer.children:
+                        child.mother_drinking = True
                     self._status = bt.Status.SUCCESS
+                    if self.__outer.mother_drinking:
+                        self.__outer.mother_drinking = False
                     break
 
     class FindPathToWater(bt.Action):
@@ -734,6 +788,9 @@ class Fox(organisms.Organism):
 
         def action(self):
             self.__outer._asleep = True
+            for child in self.__outer.children:
+                child.mother_sleeping = True
+            self.__outer.mother_sleeping = False
             self._status = bt.Status.SUCCESS
 
     ###########
@@ -855,6 +912,7 @@ class Fox(organisms.Organism):
                     fox = Fox(ecosystem, x, y, gender, adult=False, den=den,
                               in_den=True, mother=self.__outer)
                     ecosystem.animal_map[x][y].append(fox)
+                    self.__outer.children.append(fox)
 
                 self._status = bt.Status.SUCCESS
             else:
