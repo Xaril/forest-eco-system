@@ -319,7 +319,7 @@ class Bee(organisms.Organism):
             tired = self.__outer._tired
 
             if hunger < HUNGER_SEEK_THRESHOLD and thirst < THIRST_SEEK_THRESHOLD and tired < TIRED_SEEK_THRESHOLD and self.__outer._health > 0:
-                self.__outer._health += HEAL_AMOUNT
+                self.__outer._health = min(100, self.__outer._health + HEAL_AMOUNT)
 
 
 
