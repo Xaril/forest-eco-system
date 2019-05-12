@@ -149,6 +149,20 @@ class Rabbit(organisms.Organism):
         sleep_fallback.add_child(self.WakeUp(self))
 
         # Avoiding enemies
+        enemy_sequence = bt.Sequence()
+        logic_fallback.add_child(enemy_sequence)
+        enemy_sequence.add_child(self.EnemyNearby(self))
+        enemy_sequence.add_child(self.CanMove(self))
+
+        enemy_fallback = bt.FallBack()
+        enemy_sequence.add_child(enemy_fallback)
+
+        burrow_enemy_sequence = bt.Sequence()
+        enemy_fallback.add_child(burrow_enemy_sequence)
+        burrow_enemy_sequence.add_child(self.FindPathToBurrow(self))
+        burrow_enemy_sequence.add_child(self.MoveOnPath(self))
+
+        enemy_fallback.add_child(self.RunAway(self))
 
         # Eating
         hungry_sequence = bt.Sequence()
@@ -562,6 +576,28 @@ class Rabbit(organisms.Organism):
     # ENEMIES #
     ###########
 
+    class EnemyNearby(bt.Condition):
+        """Check if there are foxes nearby."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            vision_range = self.__outer._vision_range
+            ecosystem = self.__outer._ecosystem
+
+            for dx in range(-int(vision_range['left']), int(vision_range['right'])+1):
+                for dy in range(-int(vision_range['up']), int(vision_range['down'])+1):
+                    if x + dx < 0 or x + dx >= ecosystem.width or y + dy < 0 or y + dy >= ecosystem.height:
+                        continue
+
+                    for animal in ecosystem.animal_map[x + dx][y + dy]:
+                        if animal.type == organisms.Type.FOX:
+                            return True
+            return False
+
     class CanMove(bt.Condition):
         """Check if the rabbit can move."""
         def __init__(self, outer):
@@ -570,6 +606,57 @@ class Rabbit(organisms.Organism):
 
         def condition(self):
             return self.__outer._movement_timer == 0
+
+    class RunAway(bt.Action):
+        """Runs away from the closest threat."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            vision_range = self.__outer._vision_range
+            ecosystem = self.__outer._ecosystem
+
+            fox = None
+            closest_distance = math.inf
+
+            for dx in range(-int(vision_range['left']), int(vision_range['right'])+1):
+                for dy in range(-int(vision_range['up']), int(vision_range['down'])+1):
+                    if x + dx < 0 or x + dx >= ecosystem.width or y + dy < 0 or y + dy >= ecosystem.height:
+                        continue
+
+                    distance = helpers.EuclidianDistance(x, y, x + dx, y + dy)
+                    if distance < closest_distance:
+                        for animal in ecosystem.animal_map[x + dx][y + dy]:
+                            if animal.type == organisms.Type.FOX:
+                                fox = animal
+                                closest_distance = distance
+
+            if fox is not None:
+                self._status = bt.Status.SUCCESS
+
+                dir_x = 0
+                if fox.x > x:
+                    dir_x = -1
+                elif fox.x < x:
+                    dir_x = 1
+
+                dir_y = 0
+                if fox.y > y:
+                    dir_y = -1
+                elif fox.y < y:
+                    dir_y = 1
+
+                self.__outer._movement_timer += self.__outer._movement_cooldown
+                index = ecosystem.animal_map[x][y].index(self.__outer)
+                ecosystem.animal_map[x + dir_x][y + dir_y].append(ecosystem.animal_map[x][y].pop(index))
+                self.__outer.x += dir_x
+                self.__outer.y += dir_y
+            else:
+                self._status = bt.Status.FAIL
+
 
     ##########
     # HUNGER #
