@@ -205,6 +205,20 @@ class Fox(organisms.Organism):
         hungry_fallback = bt.FallBack()
         hungry_sequence.add_child(hungry_fallback)
 
+        rabbit_sequence = bt.Sequence()
+        hungry_fallback.add_child(rabbit_sequence)
+        rabbit_sequence.add_child(self.RabbitVisible(self))
+        rabbit_sequence.add_child(self.CanMove(self))
+        rabbit_sequence.add_child(self.FindPathToRabbit(self))
+        rabbit_sequence.add_child(self.MoveOnPath(self))
+
+        smell_sequence = bt.Sequence()
+        hungry_fallback.add_child(smell_sequence)
+        smell_sequence.add_child(self.SmellExists(self))
+        smell_sequence.add_child(self.CanMove(self))
+        smell_sequence.add_child(self.FindPathToSmell(self))
+        smell_sequence.add_child(self.MoveOnPath(self))
+
         # Drinking
         thirsty_sequence = bt.Sequence()
         logic_fallback.add_child(thirsty_sequence)
@@ -756,15 +770,137 @@ class Fox(organisms.Organism):
 
                 for animal in ecosystem.animal_map[x + dx][y + dy]:
                     if animal.type == organisms.Type.RABBIT:
-                        if animal.size > best_rabbit_size:
-                            best_rabbit = animal
-                            best_rabbit_size = animal.size
+                        if not animal.in_burrow:
+                            if animal.size > best_rabbit_size:
+                                best_rabbit = animal
+                                best_rabbit_size = animal.size
 
             if best_rabbit is not None:
                 self.__outer._hunger -= 100 * FOX_SIZE_FACTOR * best_rabbit.size
                 self._status = bt.Status.SUCCESS
                 best_rabbit.health = 0
             else:
+                self._status = bt.Status.FAIL
+
+    class RabbitVisible(bt.Condition):
+        """Check if there is a rabbit in the fox's vision range."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            vision_range = self.__outer._vision_range
+            ecosystem = self.__outer._ecosystem
+
+            for dx in range(-int(vision_range['left']), int(vision_range['right'])+1):
+                for dy in range(-int(vision_range['up']), int(vision_range['down'])+1):
+                    if x + dx < 0 or x + dx >= ecosystem.width or y + dy < 0 or y + dy >= ecosystem.height:
+                        continue
+
+                    for animal in ecosystem.animal_map[x + dx][y + dy]:
+                        if animal.type == organisms.Type.RABBIT:
+                            return True
+            return False
+
+    class FindPathToRabbit(bt.Action):
+        """Finds a path to the closest rabbit."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            vision_range = self.__outer._vision_range
+            ecosystem = self.__outer._ecosystem
+
+            rabbit = None
+            best_distance = math.inf
+
+            for dx in range(-int(vision_range['left']), int(vision_range['right'])+1):
+                for dy in range(-int(vision_range['up']), int(vision_range['down'])+1):
+                    if x + dx < 0 or x + dx >= ecosystem.width or y + dy < 0 or y + dy >= ecosystem.height:
+                        continue
+
+                    distance = helpers.EuclidianDistance(x, y, x + dx, y + dy)
+                    if distance < best_distance:
+                        for animal in ecosystem.animal_map[x + dx][y + dy]:
+                            if animal.type == organisms.Type.RABBIT:
+                                rabbit = animal
+                                best_distance = distance
+                                break
+
+            path = []
+            if rabbit is not None:
+                path = astar(self.__outer, ecosystem.water_map, ecosystem.plant_map, ecosystem.animal_map,
+                             x, y, rabbit.x, rabbit.y, max_path_length=10)
+
+            if len(path) > 0:
+                path.pop(0)
+                self.__outer._movement_path = path
+                self._status = bt.Status.SUCCESS
+            else:
+                self.__outer._movement_path = None
+                self._status = bt.Status.FAIL
+
+    class SmellExists(bt.Condition):
+        """Check if there is smell of a rabbit nearby."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            vision_range = self.__outer._vision_range
+            ecosystem = self.__outer._ecosystem
+
+            for dx in range(-int(vision_range['left']), int(vision_range['right'])+1):
+                for dy in range(-int(vision_range['up']), int(vision_range['down'])+1):
+                    if x + dx < 0 or x + dx >= ecosystem.width or y + dy < 0 or y + dy >= ecosystem.height:
+                        continue
+
+                    if ecosystem.rabbit_smell_map[x + dx][y + dy] > 0:
+                        return True
+            return False
+
+    class FindPathToSmell(bt.Action):
+        """Find a path to the cell with the largest rabbit smell."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            vision_range = self.__outer._vision_range
+            ecosystem = self.__outer._ecosystem
+
+            smell_position = None
+            largest_smell = 0
+
+            for dx in range(-int(vision_range['left']), int(vision_range['right'])+1):
+                for dy in range(-int(vision_range['up']), int(vision_range['down'])+1):
+                    if x + dx < 0 or x + dx >= ecosystem.width or y + dy < 0 or y + dy >= ecosystem.height:
+                        continue
+
+                    if ecosystem.rabbit_smell_map[x + dx][y + dy] > largest_smell:
+                        smell_position = (x + dx, y + dy)
+                        largest_smell = ecosystem.rabbit_smell_map[x + dx][y + dy]
+
+            path = []
+            if smell_position is not None:
+                path = astar(self.__outer, ecosystem.water_map, ecosystem.plant_map, ecosystem.animal_map,
+                             x, y, smell_position[0], smell_position[1], max_path_length=10)
+
+            if len(path) > 0:
+                path.pop(0)
+                self.__outer._movement_path = path
+                self._status = bt.Status.SUCCESS
+            else:
+                self.__outer._movement_path = None
                 self._status = bt.Status.FAIL
 
     ##########

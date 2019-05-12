@@ -238,18 +238,21 @@ class Ecosystem():
                 self.nectar_smell_map[x][y] = 0
 
     def update_rabbit_smell_map(self):
+        from organisms import Type
         for x in range(self.width):
             for y in range(self.height):
                 found_rabbit = False
                 for animal in self.animal_map[x][y]:
-                    if animal.type == organisms.Type.RABBIT:
+                    if animal.type == Type.RABBIT:
                         found_rabbit = True
                         break
 
-            if found_rabbit:
-                self.rabbit_smell_map[x][y] = 1
-            else:
-                self.rabbit_smell_map[x][y] *= 2/3
+                if found_rabbit:
+                    self.rabbit_smell_map[x][y] = 1
+                else:
+                    self.rabbit_smell_map[x][y] *= 2/3
+                    if self.rabbit_smell_map[x][y] <= 0.1:
+                        self.rabbit_smell_map[x][y] = 0
 
     def run(self):
         """Run the behaviour of all organisms for one time step."""
