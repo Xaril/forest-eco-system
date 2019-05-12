@@ -251,7 +251,7 @@ class Ecosystem():
                 if found_rabbit:
                     self.rabbit_smell_map[x][y] = 1
                 else:
-                    self.rabbit_smell_map[x][y] *= 2/3
+                    self.rabbit_smell_map[x][y] *= 0.9
                     if self.rabbit_smell_map[x][y] <= 0.1:
                         self.rabbit_smell_map[x][y] = 0
 
