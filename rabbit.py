@@ -51,7 +51,7 @@ class Rabbit(organisms.Organism):
         self._hunger = hunger
         self._thirst = thirst
         self._tired = tired
-        self._health = health
+        self.health = health
         self._life_span = life_span
         self.age = age
         self._hunger_speed = hunger_speed
@@ -79,7 +79,6 @@ class Rabbit(organisms.Organism):
 
         # TODO:
         #     * Genetic variables
-        #     * Pooping
 
         self.can_reproduce = self._adult
         self.pregnant = False
@@ -102,7 +101,7 @@ class Rabbit(organisms.Organism):
             self._movement_cooldown = 2 * movement_cooldown
             self._min_movement_cooldown = movement_cooldown
 
-        self._movement_timer = self._movement_cooldown
+        self._movement_timer = random.randint(0, self._movement_cooldown)
         self._movement_path = None
 
 
@@ -463,17 +462,17 @@ class Rabbit(organisms.Organism):
             # Hunger
             hunger = self.__outer._hunger
             if hunger >= HUNGER_DAMAGE_THRESHOLD:
-                self.__outer._health -= (hunger - HUNGER_DAMAGE_THRESHOLD) * HUNGER_DAMAGE_FACTOR
+                self.__outer.health -= (hunger - HUNGER_DAMAGE_THRESHOLD) * HUNGER_DAMAGE_FACTOR
 
             # Thirst
             thirst = self.__outer._thirst
             if thirst >= THIRST_DAMAGE_THRESHOLD:
-                self.__outer._health -= (thirst - THIRST_DAMAGE_THRESHOLD) * THIRST_DAMAGE_FACTOR
+                self.__outer.health -= (thirst - THIRST_DAMAGE_THRESHOLD) * THIRST_DAMAGE_FACTOR
 
             # Tiredness
             tired = self.__outer._tired
             if tired >= TIRED_DAMAGE_THRESHOLD:
-                self.__outer._health -= (tired - TIRED_DAMAGE_THRESHOLD) * TIRED_DAMAGE_FACTOR
+                self.__outer.health -= (tired - TIRED_DAMAGE_THRESHOLD) * TIRED_DAMAGE_FACTOR
 
     class ReplenishHealth(bt.Action):
         """Replenish health if in a healthy condition."""
@@ -488,8 +487,8 @@ class Rabbit(organisms.Organism):
             thirst = self.__outer._thirst
             tired = self.__outer._tired
 
-            if hunger < HUNGER_SEEK_THRESHOLD and thirst < THIRST_SEEK_THRESHOLD and tired < TIRED_SEEK_THRESHOLD and self.__outer._health > 0:
-                self.__outer._health = min(100, self.__outer._health + HEAL_AMOUNT)
+            if hunger < HUNGER_SEEK_THRESHOLD and thirst < THIRST_SEEK_THRESHOLD and tired < TIRED_SEEK_THRESHOLD and self.__outer.health > 0:
+                self.__outer.health = min(100, self.__outer.health + HEAL_AMOUNT)
 
     #########
     # DYING #
@@ -502,7 +501,7 @@ class Rabbit(organisms.Organism):
             self.__outer = outer
 
         def condition(self):
-            return self.__outer._health <= 0 or self.__outer.age >= self.__outer._life_span
+            return self.__outer.health <= 0 or self.__outer.age >= self.__outer._life_span
 
     class Die(bt.Action):
         """Kill the rabbit."""

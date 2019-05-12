@@ -6,7 +6,7 @@ import math
 from astar import astar
 from water import WATER_POOL_CAPACITY
 
-HUNGER_SEEK_THRESHOLD = 50
+HUNGER_SEEK_THRESHOLD = 30
 THIRST_SEEK_THRESHOLD = 50
 TIRED_SEEK_THRESHOLD = 50
 HUNGER_DAMAGE_THRESHOLD = 75
@@ -15,8 +15,8 @@ TIRED_DAMAGE_THRESHOLD = 80
 HUNGER_DAMAGE_FACTOR = 0.2
 THIRST_DAMAGE_FACTOR = 0.3
 TIRED_DAMAGE_FACTOR = 0.1
-fox_HUNGER_SATISFACTION = 100
-fox_SIZE_FACTOR = 1/20
+FOX_HUNGER_SATISFACTION = 100
+FOX_SIZE_FACTOR = 1/10
 WATER_DRINKING_AMOUNT = 0.00001 * WATER_POOL_CAPACITY
 
 EATING_AND_DRINKING_SLEEP_FACTOR = 0.3
@@ -24,10 +24,10 @@ SLEEP_TIME = 10
 
 HEAL_AMOUNT = 4
 
-REPRODUCTION_TIME = 24*70 # foxs are pregnant for 70 days
-REPRODUCTION_COOLDOWN = 24*180 # foxs usually mate once per year, we double that
+REPRODUCTION_TIME = 24*70 # foxes are pregnant for 70 days
+REPRODUCTION_COOLDOWN = 24*180 # foxes usually mate once per year, we double that
 NEW_BORN_TIME = 24*35
-# TODO: Add new born follow mom time, about four months
+NEW_BORN_FOLLOW_TIME = 24 * 100
 NURSE_COOLDOWN = 24
 
 class Fox(organisms.Organism):
@@ -36,7 +36,7 @@ class Fox(organisms.Organism):
                  thirst=0, tired=0, health=100, size=35, life_span=24*365*5,
                  hunger_speed=50/36, thirst_speed=50/72, tired_speed=50/36,
                  vision_range={'left': 4, 'right': 4, 'up': 4, 'down': 4},
-                 den=None, in_den=False, movement_cooldown=2, age=0):
+                 den=None, in_den=False, movement_cooldown=2, age=0, mother=None):
         super().__init__(ecosystem, organisms.Type.FOX, x, y)
         self.female = female
         self._adult = adult
@@ -81,6 +81,11 @@ class Fox(organisms.Organism):
         self._nurse_timer = 0
         self._stop_nursing_timer = 0
 
+        self.mother = mother
+        self.mother_drinking = False
+        self.mother_sleeping = False
+        self.children = []
+
         self.den = den
         self.in_den = False
 
@@ -94,7 +99,7 @@ class Fox(organisms.Organism):
             self._movement_cooldown = 2 * movement_cooldown
             self._min_movement_cooldown = movement_cooldown
 
-        self._movement_timer = self._movement_cooldown
+        self._movement_timer = random.randint(0, self._movement_cooldown)
         self._movement_path = None
 
 
@@ -111,16 +116,14 @@ class Fox(organisms.Organism):
         tree.add_child(self.ReduceMovementTimer(self))
         tree.add_child(self.ReduceReproductionTimer(self))
         tree.add_child(self.DenMovement(self))
-
-        # TEMPORARILY DISABLED TO ALLOW FOR TESTING OF OTHER THINGS
-        #tree.add_child(self.IncreaseHunger(self))
-
+        tree.add_child(self.IncreaseHunger(self))
         tree.add_child(self.IncreaseThirst(self))
         tree.add_child(self.ChangeTired(self))
         tree.add_child(self.HandleNursing(self))
         tree.add_child(self.IncreaseAge(self))
         tree.add_child(self.TakeDamage(self))
         tree.add_child(self.ReplenishHealth(self))
+        tree.add_child(self.HandleChildrenList(self))
 
         # Logic for the fox
         logic_fallback = bt.FallBack()
@@ -134,9 +137,73 @@ class Fox(organisms.Organism):
 
         # New born
         logic_fallback.add_child(self.NewBorn(self))
-        # TODO: Implement it.
+
+        # Sleeping
+        sleep_sequence = bt.Sequence()
+        logic_fallback.add_child(sleep_sequence)
+        sleep_sequence.add_child(self.Sleeping(self))
+
+        sleep_fallback = bt.FallBack()
+        sleep_sequence.add_child(sleep_fallback)
+        sleep_fallback.add_child(self.ShouldNotWakeUp(self))
+        sleep_fallback.add_child(self.WakeUp(self))
+
+        # Cub
+        cub_sequence = bt.Sequence()
+        logic_fallback.add_child(cub_sequence)
+        cub_sequence.add_child(self.Cub(self))
+
+        cub_fallback = bt.FallBack()
+        cub_sequence.add_child(cub_fallback)
+
+        drink_sequence = bt.Sequence()
+        cub_fallback.add_child(drink_sequence)
+        drink_sequence.add_child(self.MotherDrinking(self))
+
+        drink_fallback = bt.FallBack()
+        drink_sequence.add_child(drink_fallback)
+
+        adjacent_water_sequence = bt.Sequence()
+        drink_fallback.add_child(adjacent_water_sequence)
+        adjacent_water_sequence.add_child(self.WaterAdjacent(self))
+        adjacent_water_sequence.add_child(self.Drink(self))
+
+        water_nearby_sequence = bt.Sequence()
+        drink_fallback.add_child(water_nearby_sequence)
+        # Might want foxes to only know about water they've seen,
+        # instead of knowing about water globally
+        water_nearby_sequence.add_child(self.CanMove(self))
+        water_nearby_sequence.add_child(self.FindPathToWater(self))
+        water_nearby_sequence.add_child(self.MoveOnPath(self))
+
+        mother_sleeping_sequence = bt.Sequence()
+        cub_fallback.add_child(mother_sleeping_sequence)
+        mother_sleeping_sequence.add_child(self.MotherSleeping(self))
+        mother_sleeping_sequence.add_child(self.Sleep(self))
+
+        follow_mother_sequence = bt.Sequence()
+        cub_fallback.add_child(follow_mother_sequence)
+        follow_mother_sequence.add_child(self.CanMove(self))
+        follow_mother_sequence.add_child(self.FindPathToMother(self))
+        follow_mother_sequence.add_child(self.MoveOnPath(self))
+
+        cub_fallback.add_child(self.Cub(self)) # We always want cub to succeed to not continue in the tree.
 
         # Eating
+        adjacent_food_sequence = bt.Sequence()
+        logic_fallback.add_child(adjacent_food_sequence)
+        adjacent_food_sequence.add_child(self.CanEat(self))
+        adjacent_food_sequence.add_child(self.RabbitAdjacent(self))
+        adjacent_food_sequence.add_child(self.Eat(self))
+
+        hungry_sequence = bt.Sequence()
+        logic_fallback.add_child(hungry_sequence)
+        hungry_sequence.add_child(self.HungrierThanThirsty(self))
+        hungry_sequence.add_child(self.HungrierThanTired(self))
+        hungry_sequence.add_child(self.Hungry(self))
+
+        hungry_fallback = bt.FallBack()
+        hungry_sequence.add_child(hungry_fallback)
 
         # Drinking
         thirsty_sequence = bt.Sequence()
@@ -159,16 +226,6 @@ class Fox(organisms.Organism):
         water_nearby_sequence.add_child(self.CanMove(self))
         water_nearby_sequence.add_child(self.FindPathToWater(self))
         water_nearby_sequence.add_child(self.MoveOnPath(self))
-
-        # Sleeping
-        sleep_sequence = bt.Sequence()
-        logic_fallback.add_child(sleep_sequence)
-        sleep_sequence.add_child(self.Sleeping(self))
-
-        sleep_fallback = bt.FallBack()
-        sleep_sequence.add_child(sleep_fallback)
-        sleep_fallback.add_child(self.ShouldNotWakeUp(self))
-        sleep_fallback.add_child(self.WakeUp(self))
 
         # Tiredness
         tired_sequence = bt.Sequence()
@@ -440,6 +497,17 @@ class Fox(organisms.Organism):
             if hunger < HUNGER_SEEK_THRESHOLD and thirst < THIRST_SEEK_THRESHOLD and tired < TIRED_SEEK_THRESHOLD and self.__outer._health > 0:
                 self.__outer._health = min(100, self.__outer._health + HEAL_AMOUNT)
 
+    class HandleChildrenList(bt.Action):
+        """Check if children are big enough to take care of themselves."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            self._status = bt.Status.SUCCESS
+            children = self.__outer.children
+            self.__outer.children = [child for child in children if child.age < NEW_BORN_TIME + NEW_BORN_FOLLOW_TIME]
+
     #########
     # DYING #
     #########
@@ -478,6 +546,98 @@ class Fox(organisms.Organism):
         def condition(self):
             return self.__outer.age <= NEW_BORN_TIME
 
+    #######
+    # CUB #
+    #######
+
+    class Cub(bt.Condition):
+        """Check if the fox is a cub following its mother."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer.age <= NEW_BORN_TIME + NEW_BORN_FOLLOW_TIME
+
+    class MotherDrinking(bt.Condition):
+        """Check if the fox's mother has been drinking water."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer.mother_drinking
+
+    class CanMove(bt.Condition):
+        """Check if the fox can move."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer._movement_timer == 0
+
+    class FindPathToMother(bt.Action):
+        """Finds a path to the fox's mother."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            mother = self.__outer.mother
+            vision_range = self.__outer._vision_range
+            ecosystem = self.__outer._ecosystem
+
+            path = []
+            if mother is not None:
+                path = astar(self.__outer, ecosystem.water_map, ecosystem.plant_map, ecosystem.animal_map,
+                             x, y, mother.x, mother.y, max_path_length=10)
+
+            if len(path) > 0:
+                path.pop(0)
+                self.__outer._movement_path = path
+                self._status = bt.Status.SUCCESS
+            else:
+                self.__outer._movement_path = None
+                self._status = bt.Status.FAIL
+
+    class MoveOnPath(bt.Action):
+        """Moves on the current path."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            path = self.__outer._movement_path
+
+            if not path:
+                self._status = bt.Status.FAIL
+            else:
+                next_point = path.pop(0)
+                x = next_point[0]
+                y = next_point[1]
+                ecosystem = self.__outer._ecosystem
+                if helpers.EuclidianDistance(self.__outer.x, self.__outer.y, x, y) <= 2:
+                    self._status = bt.Status.SUCCESS
+                    self.__outer._movement_timer += self.__outer._movement_cooldown
+                    index = ecosystem.animal_map[self.__outer.x][self.__outer.y].index(self.__outer)
+                    self.__outer._ecosystem.animal_map[x][y].append(ecosystem.animal_map[self.__outer.x][self.__outer.y].pop(index))
+                    self.__outer.x = x
+                    self.__outer.y = y
+                else:
+                    self._status = bt.Status.FAIL
+
+    class MotherSleeping(bt.Condition):
+        """Check if the fox's mother has been sleeping."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer.mother_sleeping
+
     ############
     # SLEEPING #
     ############
@@ -511,40 +671,101 @@ class Fox(organisms.Organism):
             self.__outer._sleep_time = 0
             self._status = bt.Status.SUCCESS
 
-    class CanMove(bt.Condition):
-        """Check if the fox can move."""
+    ##########
+    # HUNGER #
+    ##########
+
+    class HungrierThanThirsty(bt.Condition):
+        """Check if the fox is hungrier than it is thirsty."""
         def __init__(self, outer):
             super().__init__()
             self.__outer = outer
 
         def condition(self):
-            return self.__outer._movement_timer == 0
+            return self.__outer._hunger / HUNGER_SEEK_THRESHOLD >= self.__outer._thirst / THIRST_SEEK_THRESHOLD
 
-    class MoveOnPath(bt.Action):
-        """Moves on the current path."""
+    class HungrierThanTired(bt.Condition):
+        """Check if the fox is hungrier than it is tired."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer._hunger / HUNGER_SEEK_THRESHOLD >= self.__outer._tired / TIRED_SEEK_THRESHOLD
+
+    class Hungry(bt.Condition):
+        """Check if the fox is hungry."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return not self.__outer._stabilized_health and self.__outer._hunger >= HUNGER_SEEK_THRESHOLD
+
+    class CanEat(bt.Condition):
+        """Check if the fox can eat."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer._hunger >= -HUNGER_DAMAGE_THRESHOLD
+
+    class RabbitAdjacent(bt.Condition):
+        """Check if there is a rabbit next to the fox."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            ecosystem = self.__outer._ecosystem
+
+            for direction in list(helpers.Direction):
+                dx = direction.value[0]
+                dy = direction.value[1]
+
+                if x + dx < 0 or x + dx >= ecosystem.width or y + dy < 0 or y + dy >= ecosystem.height:
+                    continue
+
+                for animal in ecosystem.animal_map[x + dx][y + dy]:
+                    if animal.type == organisms.Type.RABBIT:
+                        return True
+            return False
+
+    class Eat(bt.Action):
+        """Eats the largest rabbit adjacent to the fox."""
         def __init__(self, outer):
             super().__init__()
             self.__outer = outer
 
         def action(self):
-            path = self.__outer._movement_path
+            x = self.__outer.x
+            y = self.__outer.y
+            ecosystem = self.__outer._ecosystem
 
-            if not path:
-                self._status = bt.Status.FAIL
+            best_rabbit = None
+            best_rabbit_size = 0
+            for direction in list(helpers.Direction):
+                dx = direction.value[0]
+                dy = direction.value[1]
+
+                if x + dx < 0 or x + dx >= ecosystem.width or y + dy < 0 or y + dy >= ecosystem.height:
+                    continue
+
+                for animal in ecosystem.animal_map[x + dx][y + dy]:
+                    if animal.type == organisms.Type.RABBIT:
+                        if animal.size > best_rabbit_size:
+                            best_rabbit = animal
+                            best_rabbit_size = animal.size
+
+            if best_rabbit is not None:
+                self.__outer._hunger -= 100 * FOX_SIZE_FACTOR * best_rabbit.size
+                self._status = bt.Status.SUCCESS
+                best_rabbit.health = 0
             else:
-                next_point = path.pop(0)
-                x = next_point[0]
-                y = next_point[1]
-                ecosystem = self.__outer._ecosystem
-                if helpers.EuclidianDistance(self.__outer.x, self.__outer.y, x, y) <= 2:
-                    self._status = bt.Status.SUCCESS
-                    self.__outer._movement_timer += self.__outer._movement_cooldown
-                    index = ecosystem.animal_map[self.__outer.x][self.__outer.y].index(self.__outer)
-                    self.__outer._ecosystem.animal_map[x][y].append(ecosystem.animal_map[self.__outer.x][self.__outer.y].pop(index))
-                    self.__outer.x = x
-                    self.__outer.y = y
-                else:
-                    self._status = bt.Status.FAIL
+                self._status = bt.Status.FAIL
 
     ##########
     # THIRST #
@@ -613,7 +834,11 @@ class Fox(organisms.Organism):
                 if ecosystem.water_map[x + dx][y + dy]:
                     ecosystem.water_map[x + dx][y + dy].water_amount -= WATER_DRINKING_AMOUNT
                     self.__outer._thirst = 0
+                    for child in self.__outer.children:
+                        child.mother_drinking = True
                     self._status = bt.Status.SUCCESS
+                    if self.__outer.mother_drinking:
+                        self.__outer.mother_drinking = False
                     break
 
     class FindPathToWater(bt.Action):
@@ -670,6 +895,9 @@ class Fox(organisms.Organism):
 
         def action(self):
             self.__outer._asleep = True
+            for child in self.__outer.children:
+                child.mother_sleeping = True
+            self.__outer.mother_sleeping = False
             self._status = bt.Status.SUCCESS
 
     ###########
@@ -788,8 +1016,10 @@ class Fox(organisms.Organism):
             if den is not None:
                 for _ in range(random.randint(minimum_amount, maximum_amount)):
                     gender = random.choice([True, False])
-                    fox = Fox(ecosystem, x, y, gender, adult=False, den=den, in_den=True)
+                    fox = Fox(ecosystem, x, y, gender, adult=False, den=den,
+                              in_den=True, mother=self.__outer)
                     ecosystem.animal_map[x][y].append(fox)
+                    self.__outer.children.append(fox)
 
                 self._status = bt.Status.SUCCESS
             else:
