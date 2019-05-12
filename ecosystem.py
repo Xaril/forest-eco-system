@@ -13,6 +13,7 @@ from water import Water
 from weather import Weather
 from helpers import Direction, EuclidianDistance, InverseLerp
 import constants
+import organisms
 
 
 TREE_PERCENTAGE = 0.1

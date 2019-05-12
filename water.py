@@ -15,7 +15,7 @@ class Water(organisms.Organism):
         self.water_capacity = WATER_POOL_CAPACITY
 
     def get_image(self):
-        if self.water_amount < WATER_POOL_CAPACITY * 0.3:
+        if self.water_amount < WATER_POOL_CAPACITY * 0.01:
             return 'images/waterLow.png'
         else:
             return 'images/waterHigh.png'
