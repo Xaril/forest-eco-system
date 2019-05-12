@@ -102,7 +102,7 @@ class Rabbit(organisms.Organism):
             self._movement_cooldown = 2 * movement_cooldown
             self._min_movement_cooldown = movement_cooldown
 
-        self._movement_timer = self._movement_cooldown
+        self._movement_timer = random.randint(0, self._movement_cooldown)
         self._movement_path = None
 
 
