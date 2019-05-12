@@ -47,7 +47,7 @@ class Weather():
             self.__hour = 0
             self.__is_rainy_day = random.random() <= NUMBER_OF_RAINY_DAYS_IN_YEAR / 365
 
-        if self.__is_rainy_day:
+        if self.__is_rainy_day and random.random() < 0.3:
             if random.random() <= RainType.LIGHT.value["probability"]:
                 self.simulate_rain(RainType.LIGHT)
             elif random.random() <= RainType.MEDIUM.value["probability"]:
