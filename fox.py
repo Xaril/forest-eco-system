@@ -6,7 +6,7 @@ import math
 from astar import astar
 from water import WATER_POOL_CAPACITY
 
-HUNGER_SEEK_THRESHOLD = 50
+HUNGER_SEEK_THRESHOLD = 30
 THIRST_SEEK_THRESHOLD = 50
 TIRED_SEEK_THRESHOLD = 50
 HUNGER_DAMAGE_THRESHOLD = 75
@@ -15,8 +15,8 @@ TIRED_DAMAGE_THRESHOLD = 80
 HUNGER_DAMAGE_FACTOR = 0.2
 THIRST_DAMAGE_FACTOR = 0.3
 TIRED_DAMAGE_FACTOR = 0.1
-fox_HUNGER_SATISFACTION = 100
-fox_SIZE_FACTOR = 1/20
+FOX_HUNGER_SATISFACTION = 100
+FOX_SIZE_FACTOR = 1/10
 WATER_DRINKING_AMOUNT = 0.00001 * WATER_POOL_CAPACITY
 
 EATING_AND_DRINKING_SLEEP_FACTOR = 0.3
@@ -116,10 +116,7 @@ class Fox(organisms.Organism):
         tree.add_child(self.ReduceMovementTimer(self))
         tree.add_child(self.ReduceReproductionTimer(self))
         tree.add_child(self.DenMovement(self))
-
-        # TEMPORARILY DISABLED TO ALLOW FOR TESTING OF OTHER THINGS
-        #tree.add_child(self.IncreaseHunger(self))
-
+        tree.add_child(self.IncreaseHunger(self))
         tree.add_child(self.IncreaseThirst(self))
         tree.add_child(self.ChangeTired(self))
         tree.add_child(self.HandleNursing(self))
@@ -193,6 +190,20 @@ class Fox(organisms.Organism):
         cub_fallback.add_child(self.Cub(self)) # We always want cub to succeed to not continue in the tree.
 
         # Eating
+        adjacent_food_sequence = bt.Sequence()
+        logic_fallback.add_child(adjacent_food_sequence)
+        adjacent_food_sequence.add_child(self.CanEat(self))
+        adjacent_food_sequence.add_child(self.RabbitAdjacent(self))
+        adjacent_food_sequence.add_child(self.Eat(self))
+
+        hungry_sequence = bt.Sequence()
+        logic_fallback.add_child(hungry_sequence)
+        hungry_sequence.add_child(self.HungrierThanThirsty(self))
+        hungry_sequence.add_child(self.HungrierThanTired(self))
+        hungry_sequence.add_child(self.Hungry(self))
+
+        hungry_fallback = bt.FallBack()
+        hungry_sequence.add_child(hungry_fallback)
 
         # Drinking
         thirsty_sequence = bt.Sequence()
@@ -659,6 +670,102 @@ class Fox(organisms.Organism):
             self.__outer._asleep = False
             self.__outer._sleep_time = 0
             self._status = bt.Status.SUCCESS
+
+    ##########
+    # HUNGER #
+    ##########
+
+    class HungrierThanThirsty(bt.Condition):
+        """Check if the fox is hungrier than it is thirsty."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer._hunger / HUNGER_SEEK_THRESHOLD >= self.__outer._thirst / THIRST_SEEK_THRESHOLD
+
+    class HungrierThanTired(bt.Condition):
+        """Check if the fox is hungrier than it is tired."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer._hunger / HUNGER_SEEK_THRESHOLD >= self.__outer._tired / TIRED_SEEK_THRESHOLD
+
+    class Hungry(bt.Condition):
+        """Check if the fox is hungry."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return not self.__outer._stabilized_health and self.__outer._hunger >= HUNGER_SEEK_THRESHOLD
+
+    class CanEat(bt.Condition):
+        """Check if the fox can eat."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer._hunger >= -HUNGER_DAMAGE_THRESHOLD
+
+    class RabbitAdjacent(bt.Condition):
+        """Check if there is a rabbit next to the fox."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            ecosystem = self.__outer._ecosystem
+
+            for direction in list(helpers.Direction):
+                dx = direction.value[0]
+                dy = direction.value[1]
+
+                if x + dx < 0 or x + dx >= ecosystem.width or y + dy < 0 or y + dy >= ecosystem.height:
+                    continue
+
+                for animal in ecosystem.animal_map[x + dx][y + dy]:
+                    if animal.type == organisms.Type.RABBIT:
+                        return True
+            return False
+
+    class Eat(bt.Action):
+        """Eats the largest rabbit adjacent to the fox."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            ecosystem = self.__outer._ecosystem
+
+            best_rabbit = None
+            best_rabbit_size = 0
+            for direction in list(helpers.Direction):
+                dx = direction.value[0]
+                dy = direction.value[1]
+
+                if x + dx < 0 or x + dx >= ecosystem.width or y + dy < 0 or y + dy >= ecosystem.height:
+                    continue
+
+                for animal in ecosystem.animal_map[x + dx][y + dy]:
+                    if animal.type == organisms.Type.RABBIT:
+                        if animal.size > best_rabbit_size:
+                            best_rabbit = animal
+                            best_rabbit_size = animal.size
+
+            if best_rabbit is not None:
+                self.__outer._hunger -= 100 * FOX_SIZE_FACTOR * best_rabbit.size
+                self._status = bt.Status.SUCCESS
+                best_rabbit.health = 0
+            else:
+                self._status = bt.Status.FAIL
 
     ##########
     # THIRST #
