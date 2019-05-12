@@ -7,8 +7,12 @@ import behaviour_tree as bt
 BEE_MIN_NECTAR_IN_FLOWER = 5
 HUNGER_DAMAGE_THRESHOLD = 75
 HUNGER_DAMAGE_FACTOR = 0.5
-HIVE_SEEK_THRESHOLD = 30
+HIVE_SEEK_HP_THRESHOLD = 30
+HIVE_REST_HP_THRESHOLD = 80
 HUNGER_TOLERANCE = 20
+HEAL_AMOUNT = 10
+IN_HIVE_HEAL_FACTOR = 2
+HEAL_HUNGER_THRESHOLD = 50
 NECTAR_HUNGER_SATISFACITON = 20
 NECTAR_EAT_PORTION = 0.05
 POLLEN_AMOUNT = 2
@@ -44,8 +48,6 @@ class Bee(organisms.Organism):
 
         self._scout = scout
         self._vision_range = vision_range
-        self._orientation_memory = 3*24
-        self._time_since_last_amnesia = 0
         if scout:
             self._smell_range = smell_range
             self._orientation_map = []
@@ -95,6 +97,18 @@ class Bee(organisms.Organism):
         scout_sequence.add_child(self.IsScout(self))
         scout_fallback = bt.FallBack()
         scout_sequence.add_child(scout_fallback)
+        should_rest_fallback = bt.FallBack()
+        should_rest_in_hive_sequence = bt.Sequence()
+        should_rest_in_hive_sequence.add_child(self.InHive(self))
+        should_rest_in_hive_sequence.add_child(self.ShouldRestInHive(self))
+        should_return_to_hive_sequence = bt.Sequence()
+        should_return_to_hive_sequence.add_child(self.ShouldReturnToHive(self))
+        should_return_to_hive_sequence.add_child(self.SetHiveTargetLocation(self))
+        should_return_to_hive_sequence.add_child(self.CanMove(self))
+        should_return_to_hive_sequence.add_child(self.FlyToTargetLocation(self))
+        should_rest_fallback.add_child(should_rest_in_hive_sequence)
+        should_rest_fallback.add_child(should_return_to_hive_sequence)
+        scout_fallback.add_child(should_rest_fallback)
         food_known_sequence = bt.Sequence()
         scout_fallback.add_child(food_known_sequence)
         food_known_fallback = bt.FallBack()
@@ -132,7 +146,7 @@ class Bee(organisms.Organism):
 
         random_movement_sequence = bt.Sequence()
         random_movement_sequence.add_child(self.CanMove(self))
-        random_movement_sequence.add_child(self.FlyRandomly(self))
+        random_movement_sequence.add_child(self.Explore(self))
 
         scout_food_fallback.add_child(smell_food_sequence)
         scout_food_fallback.add_child(random_movement_sequence)
@@ -198,6 +212,7 @@ class Bee(organisms.Organism):
         sequence.add_child(self.IncreaseAge(self))
         sequence.add_child(self.IncreaseHunger(self))
         sequence.add_child(self.TakeDamage(self))
+        sequence.add_child(self.ReplenishHealth(self))
         sequence.add_child(self.UpdateOrientationMap(self))
 
 
@@ -305,6 +320,7 @@ class Bee(organisms.Organism):
                 self.__outer._health -= (hunger - HUNGER_DAMAGE_THRESHOLD) * HUNGER_DAMAGE_FACTOR
 
 
+
     class ReplenishHealth(bt.Action):
         """Replenish health if in a healthy condition."""
         def __init__(self, outer):
@@ -313,13 +329,12 @@ class Bee(organisms.Organism):
 
         def action(self):
             self._status = bt.Status.SUCCESS
-
             hunger = self.__outer._hunger
-            thirst = self.__outer._thirst
-            tired = self.__outer._tired
-
-            if hunger < HUNGER_SEEK_THRESHOLD and thirst < THIRST_SEEK_THRESHOLD and tired < TIRED_SEEK_THRESHOLD and self.__outer._health > 0:
-                self.__outer._health = min(100, self.__outer._health + HEAL_AMOUNT)
+            factor = 1
+            if self.__outer.in_hive:
+                factor = IN_HIVE_HEAL_FACTOR
+            if hunger < HEAL_HUNGER_THRESHOLD and self.__outer._health > 0:
+                self.__outer._health = min(100, self.__outer._health + HEAL_AMOUNT * factor)
 
 
 
@@ -333,14 +348,6 @@ class Bee(organisms.Organism):
                 self._status = bt.Status.SUCCESS
                 if not self.__outer._scout:
                     return
-                self.__outer._time_since_last_amnesia += 1
-                if self.__outer._time_since_last_amnesia >= self.__outer._orientation_memory:
-                    ecosystem = self.__outer._ecosystem
-                    for x in range(ecosystem.width):
-                        self.__outer._orientation_map.append([])
-                        for y in range(ecosystem.height):
-                            self.__outer._orientation_map[x].append(False)
-                    self.__outer._time_since_last_amnesia = 0
                 x = self.__outer.x
                 y = self.__outer.y
                 self.__outer._orientation_map[x][y] = True
@@ -431,6 +438,11 @@ class Bee(organisms.Organism):
                 if animal.type == organisms.Type.BEE and animal._hive == hive and not animal.food_location:
                     animal.food_location = self.__outer.food_location
             self.__outer.food_location = None
+
+            for x in range(ecosystem.width):
+                self.__outer._orientation_map.append([])
+                for y in range(ecosystem.height):
+                    self.__outer._orientation_map[x].append(False)
             self._status = bt.Status.SUCCESS
 
 
@@ -589,6 +601,22 @@ class Bee(organisms.Organism):
         def condition(self):
             return self.__outer._hunger >= HUNGER_TOLERANCE
 
+    class ShouldRestInHive(bt.Condition):
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer._health < HIVE_REST_HP_THRESHOLD
+
+    class ShouldReturnToHive(bt.Condition):
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer._health < HIVE_SEEK_HP_THRESHOLD
+
     class HiveHasFood(bt.Condition):
         def __init__(self, outer):
             super().__init__()
@@ -664,7 +692,7 @@ class Bee(organisms.Organism):
             x = self.__outer.x
             y = self.__outer.y
             target_location = self.__outer._target_location
-            if random.random() <= 0:
+            if random.random() <= 0.2:
                 random_dir = random.choice(list(helpers.Direction))
                 dx = random_dir.value[0]
                 dy = random_dir.value[1]
@@ -701,8 +729,7 @@ class Bee(organisms.Organism):
     # RANDOM MOVEMENT #
     ###################
 
-    class FlyRandomly(bt.Action):
-        """Moves the bee randomly."""
+    class Explore(bt.Action):
         def __init__(self, outer):
             super().__init__()
             self.__outer = outer
@@ -712,6 +739,8 @@ class Bee(organisms.Organism):
             y = self.__outer.y
             directions = list(helpers.Direction)
             random.shuffle(directions)
+            best_dir = None
+            max_dist = 0
             for (i, dir) in enumerate(directions):
                 dx = dir.value[0]
                 dy = dir.value[1]
@@ -721,16 +750,26 @@ class Bee(organisms.Organism):
                 elif self.__outer._orientation_map[x + dx][y + dy] and i < len(directions) - 1:
                     continue
                 else:
-                    self._status = bt.Status.SUCCESS
-                    self.__outer._movement_timer += self.__outer._movement_cooldown
-                    self.__outer._ecosystem.animal_map[x][y].remove(self.__outer)
-                    self.__outer.x += dx
-                    self.__outer.y += dy
-                    self.__outer._ecosystem.animal_map[x + dx][y + dy].append(self.__outer)
-                    for animal in self.__outer._ecosystem.animal_map[x + dx][y + dy]:
-                        if animal.type == organisms.Type.HIVE:
-                            self.__outer.in_hive = True
-                            return
-                    self.__outer.in_hive = False
-                    return
-            self._status = bt.Status.FAIL
+                    hive_x = self.__outer._hive.x
+                    hive_y = self.__outer._hive.y
+                    dist = helpers.EuclidianDistance(hive_x, hive_y, x + dx, y + dy)
+                    if dist > max_dist:
+                        max_dist = dist
+                        best_dir = (dx, dy)
+
+            if best_dir:
+                dx = best_dir[0]
+                dy = best_dir[1]
+                self._status = bt.Status.SUCCESS
+                self.__outer._movement_timer += self.__outer._movement_cooldown
+                self.__outer._ecosystem.animal_map[x][y].remove(self.__outer)
+                self.__outer.x += dx
+                self.__outer.y += dy
+                self.__outer._ecosystem.animal_map[x + dx][y + dy].append(self.__outer)
+                for animal in self.__outer._ecosystem.animal_map[x + dx][y + dy]:
+                    if animal.type == organisms.Type.HIVE:
+                        self.__outer.in_hive = True
+                        return
+                self.__outer.in_hive = False
+            else:
+                self._status = bt.Status.FAIL
