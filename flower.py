@@ -90,6 +90,8 @@ class Flower(organisms.Organism):
             x = self.__outer.x
             y = self.__outer.y
             # get water info from groud organism (earth or grass)
+            if not self.__outer._ecosystem.plant_map[x][y]:
+                return
             water_amount = self.__outer._ecosystem.plant_map[x][y].water_amount
             water_capacity = self.__outer._ecosystem.plant_map[x][y].water_capacity
             water_percentage = water_amount / water_capacity
@@ -139,7 +141,8 @@ class Flower(organisms.Organism):
         def action(self):
             x = self.__outer.x
             y = self.__outer.y
-            self.__outer._ecosystem.flower_map[x][y].remove(self.__outer)
+            if self.__outer in self.__outer._ecosystem.flower_map[x][y]:
+                self.__outer._ecosystem.flower_map[x][y].remove(self.__outer)
             self._status = bt.Status.SUCCESS
 
 
@@ -183,7 +186,7 @@ class Flower(organisms.Organism):
                         if new_x < 0 or new_x >= self.__outer._ecosystem.width or new_y < 0 or new_y >= self.__outer._ecosystem.height:
                             continue
                         self.__outer._ecosystem.nectar_smell_map[new_x][new_y] += self.__outer.nectar/(i+1)
-                        
+
             self._status = bt.Status.SUCCESS
 
     class CantProducePollen(bt.Condition):
