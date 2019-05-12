@@ -70,6 +70,12 @@ class Ecosystem():
             for y in range(self.height):
                 self.nectar_smell_map[x].append(0)
 
+        self.rabbit_smell_map = []
+        for x in range(self.width):
+            self.rabbit_smell_map.append([])
+            for y in range(self.height):
+                self.rabbit_smell_map[x].append(0)
+
         self.weather = Weather(self)
 
         # Add initial organisms
@@ -231,12 +237,27 @@ class Ecosystem():
             for y in range(self.height):
                 self.nectar_smell_map[x][y] = 0
 
+    def update_rabbit_smell_map(self):
+        for x in range(self.width):
+            for y in range(self.height):
+                found_rabbit = False
+                for animal in self.animal_map[x][y]:
+                    if animal.type == organisms.Type.RABBIT:
+                        found_rabbit = True
+                        break
+
+            if found_rabbit:
+                self.rabbit_smell_map[x][y] = 1
+            else:
+                self.rabbit_smell_map[x][y] *= 2/3
 
     def run(self):
         """Run the behaviour of all organisms for one time step."""
         organisms = self.get_organisms_from_maps()
 
         self.weather.simulate_weather()
+
+        self.update_rabbit_smell_map()
 
         for organism in organisms:
             organism.run()
