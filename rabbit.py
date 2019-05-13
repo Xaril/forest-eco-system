@@ -637,23 +637,30 @@ class Rabbit(organisms.Organism):
             if fox is not None:
                 self._status = bt.Status.SUCCESS
 
-                dir_x = 0
-                if fox.x > x:
-                    dir_x = -1
-                elif fox.x < x:
-                    dir_x = 1
+                best_direction = None
+                best_distance = 0
+                for direction in list(helpers.Direction):
+                    dx = direction.value[0]
+                    dy = direction.value[1]
 
-                dir_y = 0
-                if fox.y > y:
-                    dir_y = -1
-                elif fox.y < y:
-                    dir_y = 1
+                    if x + dx < 0 or x + dx >= ecosystem.width or y + dy < 0 or y + dy >= ecosystem.height:
+                        continue
 
-                self.__outer._movement_timer += self.__outer._movement_cooldown
-                index = ecosystem.animal_map[x][y].index(self.__outer)
-                ecosystem.animal_map[x + dir_x][y + dir_y].append(ecosystem.animal_map[x][y].pop(index))
-                self.__outer.x += dir_x
-                self.__outer.y += dir_y
+                    distance = helpers.EuclidianDistance(x, y, x + dx, y + dy)
+                    if distance > best_distance:
+                        best_direction = direction
+                        best_distance = distance
+
+                if best_direction is not None:
+                    dir_x = best_direction.value[0]
+                    dir_y = best_direction.value[1]
+                    self.__outer._movement_timer += self.__outer._movement_cooldown
+                    index = ecosystem.animal_map[x][y].index(self.__outer)
+                    ecosystem.animal_map[x + dir_x][y + dir_y].append(ecosystem.animal_map[x][y].pop(index))
+                    self.__outer.x += dir_x
+                    self.__outer.y += dir_y
+                else:
+                    self._status = bt.Status.FAIL
             else:
                 self._status = bt.Status.FAIL
 
