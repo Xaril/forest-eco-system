@@ -94,6 +94,9 @@ def plot(steps):
         populations['flower'].append(flowers)
         populations['grass'].append(grass)
 
+        if not i % 100:
+            print('Iteration %d: %d foxes left, %d rabbits left.' % (i, foxes, rabbits))
+
         if rabbits != 0:
             genetics_factors['rabbit'].append(rabbit_genetics_factor / rabbits)
         if foxes != 0:

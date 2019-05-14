@@ -23,13 +23,13 @@ INITAL_WATER_MAX_AMOUNT = 500
 WATER_POOLS = [20, 10, 5, 3, 3, 3, 3, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1]
 WATER_POOLS_POSITIONS = []
 ANIMAL_CELL_CAPACITY = 100
-BURROW_PERCENTAGE = 0.02
+BURROW_AMOUNT = random.randint(30, 40)
 BURROW_RABBIT_MIN_AMOUNT = 3
 BURROW_RABBIT_MAX_AMOUNT = 5
 HIVES_PER_TREE = 0.07
 HIVE_BEE_MIN_AMOUNT = 5
 HIVE_BEE_MAX_AMOUNT = 9
-FOX_PERCENTAGE = 0.005
+FOX_AMOUNT = random.randint(5, 10)
 
 
 class Ecosystem():
@@ -157,40 +157,46 @@ class Ecosystem():
 
         # Animal map
         import numpy as np
-        for x in range(self.width):
-            for y in range(self.height):
-                if self.water_map[x][y]:
+        # Rabbits
+        for _ in range(BURROW_AMOUNT):
+            x = random.randint(0, self.width-1)
+            y = random.randint(0, self.height-1)
+            while self.water_map[x][y]:
+                x = random.randint(0, self.width-1)
+                y = random.randint(0, self.height-1)
+            burrow = Burrow(self, x, y)
+            self.animal_map[x][y].append(burrow)
+            rabbit_amount = random.randint(BURROW_RABBIT_MIN_AMOUNT, BURROW_RABBIT_MAX_AMOUNT)
+            for _ in range(rabbit_amount):
+                dx = random.randint(-3, 3)
+                dy = random.randint(-3, 3)
+
+                if x + dx < 0 or x + dx >= self.width or y + dy < 0 or y + dy >= self.height:
                     continue
-                # Rabbits
-                if random.random() <= BURROW_PERCENTAGE:
-                    burrow = Burrow(self, x, y)
-                    self.animal_map[x][y].append(burrow)
-                    rabbit_amount = random.randint(BURROW_RABBIT_MIN_AMOUNT, BURROW_RABBIT_MAX_AMOUNT)
-                    for _ in range(rabbit_amount):
-                        dx = random.randint(-3, 3)
-                        dy = random.randint(-3, 3)
 
-                        if x + dx < 0 or x + dx >= self.width or y + dy < 0 or y + dy >= self.height:
-                            continue
+                if self.water_map[x + dx][y + dy]:
+                    continue
 
-                        if self.water_map[x + dx][y + dy]:
-                            continue
+                rabbit = Rabbit(self, x + dx, y + dy,
+                                random.choice([True, False]),
+                                adult=True, burrow=burrow,
+                                age=random.randint(24*30, 24*30*3),
+                                reproduction_timer=random.randint(0, 24*6),
+                                genetics_factor=np.random.normal(1, 0.1))
+                self.animal_map[x + dx][y + dy].append(rabbit)
 
-                        rabbit = Rabbit(self, x + dx, y + dy,
-                                        random.choice([True, False]),
-                                        adult=True, burrow=burrow,
-                                        age=random.randint(24*30, 24*30*3),
-                                        reproduction_timer=random.randint(0, 24*6),
-                                        genetics_factor=np.random.normal(1, 0.1))
-                        self.animal_map[x + dx][y + dy].append(rabbit)
-
-                # Foxes
-                if random.random() <= FOX_PERCENTAGE:
-                    fox = Fox(self, x, y,
-                              random.choice([True, False]),
-                              adult=True, age=random.randint(24*30*2, 24*30*6),
-                              genetics_factor=np.random.normal(1, 0.1))
-                    self.animal_map[x][y].append(fox)
+        # Foxes
+        for _ in range(FOX_AMOUNT):
+            x = random.randint(0, self.width-1)
+            y = random.randint(0, self.height-1)
+            while self.water_map[x][y]:
+                x = random.randint(0, self.width-1)
+                y = random.randint(0, self.height-1)
+            fox = Fox(self, x, y,
+                      random.choice([True, False]),
+                      adult=True, age=random.randint(24*30*2, 24*30*6),
+                      genetics_factor=np.random.normal(1, 0.1))
+            self.animal_map[x][y].append(fox)
 
 
 
