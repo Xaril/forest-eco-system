@@ -52,6 +52,11 @@ def plot(steps):
         'flower': []
     }
 
+    genetics_factors = {
+        'rabbit': [],
+        'fox': []
+    }
+
     ecosystem = Ecosystem(int(SCREEN_WIDTH/CELL_WIDTH), int(SCREEN_HEIGHT/CELL_HEIGHT))
 
     # Iterate over time
@@ -63,12 +68,17 @@ def plot(steps):
         bees = 0
         flowers = 0
 
+        rabbit_genetics_factor = 0
+        fox_genetics_factor = 0
+
         for organism in ecosystem_organisms:
             # Observe animal populations
             if organism.type == Type.RABBIT:
                 rabbits += 1
+                rabbit_genetics_factor += organism.genetics_factor
             elif organism.type == Type.FOX:
                 foxes += 1
+                fox_genetics_factor += organism.genetics_factor
             elif organism.type == Type.BEE:
                 bees += 1
             elif organism.type == Type.FLOWER:
@@ -79,6 +89,9 @@ def plot(steps):
         populations['bee'].append(bees)
         populations['flower'].append(flowers)
 
+        genetics_factors['rabbit'].append(rabbit_genetics_factor / rabbits)
+        genetics_factors['fox'].append(fox_genetics_factor / foxes)
+
     # Plot the results
     plt.plot(populations['rabbit'], label='Rabbits')
     plt.plot(populations['fox'], label='Foxes')
@@ -87,6 +100,13 @@ def plot(steps):
     plt.xlabel('Time')
     plt.legend(loc='upper right')
     plt.ylabel('Population amount')
+    plt.show()
+
+    plt.plot(genetics_factors['rabbit'], label='Rabbits')
+    plt.plot(genetics_factors['fox'], label='Foxes')
+    plt.xlabel('Time')
+    plt.legend(loc='upper right')
+    plt.ylabel('Genetics factor')
     plt.show()
 
 

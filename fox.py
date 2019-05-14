@@ -39,7 +39,8 @@ class Fox(organisms.Organism):
                  thirst=0, tired=0, health=100, size=35, life_span=24*30*8,
                  hunger_speed=50/72, thirst_speed=50/100, tired_speed=50/36,
                  vision_range={'left': 5, 'right': 5, 'up': 5, 'down': 5},
-                 den=None, in_den=False, movement_cooldown=2, age=0, mother=None):
+                 den=None, in_den=False, movement_cooldown=2, age=0, mother=None,
+                 genetics_factor=1):
         super().__init__(ecosystem, organisms.Type.FOX, x, y)
         self.female = female
         self._adult = adult
@@ -50,9 +51,10 @@ class Fox(organisms.Organism):
         self._health = health
         self._life_span = life_span
         self.age = age
-        self._hunger_speed = hunger_speed
-        self._thirst_speed = thirst_speed
-        self._tired_speed = tired_speed
+        self._hunger_speed = hunger_speed * genetics_factor
+        self._thirst_speed = thirst_speed * genetics_factor
+        self._tired_speed = tired_speed / genetics_factor
+        self.genetics_factor = genetics_factor
         self._needs_to_poop = False
         self._poop_contains_seed = False
 
@@ -96,13 +98,13 @@ class Fox(organisms.Organism):
         self._sleep_time = 0
 
         if self._adult:
-            self._movement_cooldown = movement_cooldown
-            self._min_movement_cooldown = movement_cooldown
+            self._movement_cooldown = movement_cooldown / genetics_factor
+            self._min_movement_cooldown = movement_cooldown / genetics_factor
         else:
-            self._movement_cooldown = 2 * movement_cooldown
-            self._min_movement_cooldown = movement_cooldown
+            self._movement_cooldown = 2 * movement_cooldown / genetics_factor
+            self._min_movement_cooldown = movement_cooldown / genetics_factor
 
-        self._movement_timer = random.randint(0, self._movement_cooldown)
+        self._movement_timer = random.uniform(0, self._movement_cooldown)
         self._movement_path = None
 
 
@@ -1168,10 +1170,15 @@ class Fox(organisms.Organism):
             ecosystem = self.__outer._ecosystem
 
             if den is not None:
+                import numpy as np
                 for _ in range(random.randint(minimum_amount, maximum_amount)):
                     gender = random.choice([True, False])
+                    genetics_factor = (self.__outer.genetics_factor + self.__outer.partner_genetics_factor) / 2
+                    mutation = np.random.normal(0, 0.1)
+                    genetics_factor += mutation
                     fox = Fox(ecosystem, x, y, gender, adult=False, den=den,
-                              in_den=True, mother=self.__outer)
+                              in_den=True, mother=self.__outer,
+                              genetics_factor=genetics_factor)
                     ecosystem.animal_map[x][y].append(fox)
                     self.__outer.children.append(fox)
 
@@ -1382,7 +1389,9 @@ class Fox(organisms.Organism):
                         if not animal.partner and animal.can_reproduce and animal.female is not self.__outer.female:
                             self._status = bt.Status.SUCCESS
                             self.__outer.partner = animal
+                            animal.partner_genetics_factor = self.__outer.genetics_factor
                             animal.partner = self.__outer
+                            self.__outer.partner_genetics_factor = animal.genetics_factor
 
     class AvailableFoxNearby(bt.Condition):
         """Determines if there is a fox in this fox's vision range

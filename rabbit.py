@@ -48,7 +48,7 @@ class Rabbit(organisms.Organism):
                  hunger_speed=50/36, thirst_speed=50/72, tired_speed=50/36,
                  vision_range={'left': 4, 'right': 4, 'up': 4, 'down': 4},
                  burrow=None, in_burrow=False, movement_cooldown=3, age=0,
-                 reproduction_timer=0):
+                 reproduction_timer=0, genetics_factor=1):
         super().__init__(ecosystem, organisms.Type.RABBIT, x, y)
         self.female = female
         self._adult = adult
@@ -59,9 +59,11 @@ class Rabbit(organisms.Organism):
         self.health = health
         self._life_span = life_span
         self.age = age
-        self._hunger_speed = hunger_speed
-        self._thirst_speed = thirst_speed
-        self._tired_speed = tired_speed
+        self._hunger_speed = hunger_speed * genetics_factor
+        self._thirst_speed = thirst_speed * genetics_factor
+        self._tired_speed = tired_speed / genetics_factor
+        self.genetics_factor = genetics_factor
+        self.partner_genetics_factor = 1
         self._needs_to_poop = False
         self._poop_contains_seed = False
 
@@ -100,13 +102,13 @@ class Rabbit(organisms.Organism):
         self._sleep_time = 0
 
         if self._adult:
-            self._movement_cooldown = movement_cooldown
-            self._min_movement_cooldown = movement_cooldown
+            self._movement_cooldown = movement_cooldown / genetics_factor
+            self._min_movement_cooldown = movement_cooldown / genetics_factor
         else:
-            self._movement_cooldown = 2 * movement_cooldown
-            self._min_movement_cooldown = movement_cooldown
+            self._movement_cooldown = 2 * movement_cooldown / genetics_factor
+            self._min_movement_cooldown = movement_cooldown / genetics_factor
 
-        self._movement_timer = random.randint(0, self._movement_cooldown)
+        self._movement_timer = random.uniform(0, self._movement_cooldown)
         self._movement_path = None
 
 
@@ -1419,9 +1421,14 @@ class Rabbit(organisms.Organism):
             ecosystem = self.__outer._ecosystem
 
             if burrow is not None:
+                import numpy as np
                 for _ in range(random.randint(minimum_amount, maximum_amount)):
                     gender = random.choice([True, False])
-                    rabbit = Rabbit(ecosystem, x, y, gender, adult=False, burrow=burrow, in_burrow=True)
+                    genetics_factor = (self.__outer.genetics_factor + self.__outer.partner_genetics_factor) / 2
+                    mutation = np.random.normal(0, 0.1)
+                    genetics_factor += mutation
+                    rabbit = Rabbit(ecosystem, x, y, gender, adult=False, burrow=burrow,
+                                    in_burrow=True, genetics_factor=genetics_factor)
                     ecosystem.animal_map[x][y].append(rabbit)
 
                 self._status = bt.Status.SUCCESS
@@ -1610,7 +1617,9 @@ class Rabbit(organisms.Organism):
                         if not animal.partner and animal.can_reproduce and animal.female is not self.__outer.female:
                             self._status = bt.Status.SUCCESS
                             self.__outer.partner = animal
+                            animal.partner_genetics_factor = self.__outer.genetics_factor
                             animal.partner = self.__outer
+                            self.__outer.partner_genetics_factor = animal.genetics_factor
 
     class AvailableRabbitNearby(bt.Condition):
         """Determines if there is a rabbit in this rabbit's vision range

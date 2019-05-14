@@ -156,6 +156,7 @@ class Ecosystem():
                         self.flower_map[x][y].append(flower)
 
         # Animal map
+        import numpy as np
         for x in range(self.width):
             for y in range(self.height):
                 if self.water_map[x][y]:
@@ -179,14 +180,16 @@ class Ecosystem():
                                         random.choice([True, False]),
                                         adult=True, burrow=burrow,
                                         age=random.randint(24*30, 24*30*3),
-                                        reproduction_timer=random.randint(0, 24*6))
+                                        reproduction_timer=random.randint(0, 24*6),
+                                        genetics_factor=np.random.normal(1, 0.1))
                         self.animal_map[x + dx][y + dy].append(rabbit)
 
                 # Foxes
                 if random.random() <= FOX_PERCENTAGE:
                     fox = Fox(self, x, y,
                               random.choice([True, False]),
-                              adult=True, age=random.randint(24*30*2, 24*30*6))
+                              adult=True, age=random.randint(24*30*2, 24*30*6),
+                              genetics_factor=np.random.normal(1, 0.1))
                     self.animal_map[x][y].append(fox)
 
 
