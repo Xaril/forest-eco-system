@@ -17,19 +17,19 @@ import organisms
 
 
 TREE_PERCENTAGE = 0.1
-GRASS_INIT_PERCENTAGE = 0.2
-FLOWER_PERCENTAGE = 0.02
+GRASS_INIT_PERCENTAGE = 0.5
+FLOWER_PERCENTAGE = 0.1
 INITAL_WATER_MAX_AMOUNT = 500
-WATER_POOLS = [20, 10, 5, 3, 2]
+WATER_POOLS = [20, 10, 5, 3, 3, 3, 3, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1]
 WATER_POOLS_POSITIONS = []
 ANIMAL_CELL_CAPACITY = 100
-BURROW_PERCENTAGE = 0.002
-BURROW_RABBIT_MIN_AMOUNT = 2
-BURROW_RABBIT_MAX_AMOUNT = 3
+BURROW_PERCENTAGE = 0.02
+BURROW_RABBIT_MIN_AMOUNT = 3
+BURROW_RABBIT_MAX_AMOUNT = 5
 HIVES_PER_TREE = 0.04
 HIVE_BEE_MIN_AMOUNT = 5
 HIVE_BEE_MAX_AMOUNT = 9
-FOX_PERCENTAGE = 0.0025
+FOX_PERCENTAGE = 0.005
 
 
 class Ecosystem():
@@ -177,14 +177,14 @@ class Ecosystem():
                         rabbit = Rabbit(self, x + dx, y + dy,
                                         random.choice([True, False]),
                                         adult=True, burrow=burrow,
-                                        age=random.randint(24*365, 24*365*2))
+                                        age=random.randint(24*30, 24*30*3))
                         self.animal_map[x + dx][y + dy].append(rabbit)
 
                 # Foxes
                 if random.random() <= FOX_PERCENTAGE:
                     fox = Fox(self, x, y,
                               random.choice([True, False]),
-                              adult=True, age=random.randint(24*365, 24*365*4))
+                              adult=True, age=random.randint(24*30*2, 24*30*6))
                     self.animal_map[x][y].append(fox)
 
 

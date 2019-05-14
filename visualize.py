@@ -4,7 +4,7 @@ from organisms import Type
 import matplotlib.pyplot as plt
 import argparse
 
-SCREEN_WIDTH = 800
+SCREEN_WIDTH = 1200
 SCREEN_HEIGHT = 800
 CELL_WIDTH = 20
 CELL_HEIGHT = 20

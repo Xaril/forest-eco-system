@@ -28,20 +28,23 @@ SLEEP_TIME = 8
 
 HEAL_AMOUNT = 4
 
-REPRODUCTION_TIME = 24*30 # Rabbits are pregnant for 30 days
-REPRODUCTION_COOLDOWN = 24*5 # Rabbits usually have to wait 5 days before being able to reproduce again
-NEW_BORN_TIME = 24*30
+REPRODUCTION_TIME = 24*5 # Rabbits are pregnant for 30 days
+REPRODUCTION_COOLDOWN = 24*1 # Rabbits usually have to wait 5 days before being able to reproduce again
+NEW_BORN_TIME = 24*5
 NURSE_COOLDOWN = 24
+ADULT_AGE = 24*30
 
 POOP_PERCENTAGE = 0.1
 CREATE_FLOWER_PERCENTAGE = 0.7
 MAX_FLOWER_AMOUNT = 5
 
+PATH_LENGTH = 5
+
 
 class Rabbit(organisms.Organism):
     """Defines the rabbit."""
     def __init__(self, ecosystem, x, y, female, adult=False, hunger=0,
-                 thirst=0, tired=0, health=100, size=20, life_span=24*365*3,
+                 thirst=0, tired=0, health=100, size=20, life_span=24*30*4,
                  hunger_speed=50/36, thirst_speed=50/72, tired_speed=50/36,
                  vision_range={'left': 4, 'right': 4, 'up': 4, 'down': 4},
                  burrow=None, in_burrow=False, movement_cooldown=3, age=0):
@@ -455,7 +458,7 @@ class Rabbit(organisms.Organism):
             self.__outer.age += 1
 
             # Become adults
-            if not self.__outer._adult and self.__outer.age >= 24*365:
+            if not self.__outer._adult and self.__outer.age >= ADULT_AGE:
                 self.__outer._adult = True
                 self.__outer.can_reproduce = True
                 self.__outer.size = self.__outer._max_size
@@ -464,10 +467,10 @@ class Rabbit(organisms.Organism):
 
             # Lerp values depending on age
             if not self.__outer._adult:
-                self.__outer.size = helpers.Lerp(0, self.__outer._max_size, self.__outer.age / (24 * 365))
+                self.__outer.size = helpers.Lerp(0, self.__outer._max_size, self.__outer.age / (ADULT_AGE))
                 for key in self.__outer._vision_range:
-                    self.__outer._vision_range[key] = min(self.__outer._max_vision_range[key], helpers.Lerp(0, self.__outer._max_vision_range[key], self.__outer.age / (24 * 30)))
-                self.__outer._movement_cooldown = helpers.Lerp(2 * self.__outer._min_movement_cooldown, self.__outer._min_movement_cooldown, self.__outer.age / (24 * 365))
+                    self.__outer._vision_range[key] = min(self.__outer._max_vision_range[key], helpers.Lerp(0, self.__outer._max_vision_range[key], self.__outer.age / (NEW_BORN_TIME)))
+                self.__outer._movement_cooldown = helpers.Lerp(2 * self.__outer._min_movement_cooldown, self.__outer._min_movement_cooldown, self.__outer.age / (ADULT_AGE))
 
 
             self._status = bt.Status.SUCCESS
@@ -931,7 +934,7 @@ class Rabbit(organisms.Organism):
 
             if best_food is not None:
                 path = astar(self.__outer, ecosystem.water_map, ecosystem.plant_map, ecosystem.animal_map,
-                                   x, y, best_food.x, best_food.y, max_path_length=10)
+                                   x, y, best_food.x, best_food.y, max_path_length=PATH_LENGTH)
             if len(path) > 0:
                 path.pop(0)
                 self.__outer._movement_path = path
@@ -1061,7 +1064,7 @@ class Rabbit(organisms.Organism):
 
 
             path = astar(self.__outer, ecosystem.water_map, ecosystem.plant_map, ecosystem.animal_map,
-                               x, y, best_water.x, best_water.y, max_path_length=10)
+                               x, y, best_water.x, best_water.y, max_path_length=PATH_LENGTH)
             if len(path) > 0:
                 path.pop(0)
                 self.__outer._movement_path = path
@@ -1167,7 +1170,7 @@ class Rabbit(organisms.Organism):
             safe_distance = round((TIRED_DAMAGE_THRESHOLD + 0.5 * (TIRED_DAMAGE_THRESHOLD - TIRED_SEEK_THRESHOLD) - self.__outer._tired) / self.__outer._tired_speed)
             if burrow_distance <= safe_distance:
                 path = astar(self.__outer, ecosystem.water_map, ecosystem.plant_map, ecosystem.animal_map,
-                             x, y, burrow.x, burrow.y, max_path_length=10)
+                             x, y, burrow.x, burrow.y, max_path_length=PATH_LENGTH)
             else:
                 closest_grass = None
                 best_distance = math.inf
@@ -1183,7 +1186,7 @@ class Rabbit(organisms.Organism):
                                     closest_grass = ecosystem.plant_map[x + dx][y + dy]
                                     best_distance = distance
                 path = astar(self.__outer, ecosystem.water_map, ecosystem.plant_map, ecosystem.animal_map,
-                                   x, y, closest_grass.x, closest_grass.y, max_path_length=10)
+                                   x, y, closest_grass.x, closest_grass.y, max_path_length=PATH_LENGTH)
 
             if len(path) > 0:
                 path.pop(0)
@@ -1348,7 +1351,7 @@ class Rabbit(organisms.Organism):
             path = []
             if burrow is not None:
                 path = astar(self.__outer, ecosystem.water_map, ecosystem.plant_map, ecosystem.animal_map,
-                             x, y, burrow.x, burrow.y, max_path_length=10)
+                             x, y, burrow.x, burrow.y, max_path_length=PATH_LENGTH)
 
             if len(path) > 0:
                 path.pop(0)
@@ -1417,7 +1420,7 @@ class Rabbit(organisms.Organism):
             self.__outer = outer
 
         def condition(self):
-            return self.__outer.reproduction_timer <= REPRODUCTION_COOLDOWN + 24*2 # Two days prior to giving birth
+            return self.__outer.reproduction_timer <= REPRODUCTION_COOLDOWN + 24*1 # Two days prior to giving birth
 
     class InBurrow(bt.Condition):
         """Determines if the rabbit is in its burrow."""
@@ -1536,7 +1539,7 @@ class Rabbit(organisms.Organism):
             partner = self.__outer.partner
 
             path = astar(self.__outer, ecosystem.water_map, ecosystem.plant_map, ecosystem.animal_map,
-                         x, y, partner.x, partner.y, max_path_length=10)
+                         x, y, partner.x, partner.y, max_path_length=PATH_LENGTH)
 
             if len(path) > 0:
                 path.pop(0)
@@ -1650,7 +1653,7 @@ class Rabbit(organisms.Organism):
                                         break
 
             path = astar(self.__outer, ecosystem.water_map, ecosystem.plant_map, ecosystem.animal_map,
-                         x, y, closest_rabbit.x, closest_rabbit.y, max_path_length=10)
+                         x, y, closest_rabbit.x, closest_rabbit.y, max_path_length=PATH_LENGTH)
 
             if len(path) > 0:
                 path.pop(0)

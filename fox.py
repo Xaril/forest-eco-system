@@ -24,18 +24,21 @@ SLEEP_TIME = 10
 
 HEAL_AMOUNT = 4
 
-REPRODUCTION_TIME = 24*70 # foxes are pregnant for 70 days
-REPRODUCTION_COOLDOWN = 24*180 # foxes usually mate once per year, we double that
-NEW_BORN_TIME = 24*35
-NEW_BORN_FOLLOW_TIME = 24 * 100
+REPRODUCTION_TIME = 24*10
+REPRODUCTION_COOLDOWN = 24*30
+NEW_BORN_TIME = 24*6
+NEW_BORN_FOLLOW_TIME = 24 * 15
 NURSE_COOLDOWN = 24
+ADULT_AGE = 24*30*2
+
+PATH_LENGTH = 5
 
 class Fox(organisms.Organism):
     """Defines the fox."""
     def __init__(self, ecosystem, x, y, female, adult=False, hunger=0,
-                 thirst=0, tired=0, health=100, size=35, life_span=24*365*5,
+                 thirst=0, tired=0, health=100, size=35, life_span=24*30*8,
                  hunger_speed=50/36, thirst_speed=50/72, tired_speed=50/36,
-                 vision_range={'left': 4, 'right': 4, 'up': 4, 'down': 4},
+                 vision_range={'left': 5, 'right': 5, 'up': 5, 'down': 5},
                  den=None, in_den=False, movement_cooldown=2, age=0, mother=None):
         super().__init__(ecosystem, organisms.Type.FOX, x, y)
         self.female = female
@@ -451,10 +454,9 @@ class Fox(organisms.Organism):
 
         def action(self):
             self.__outer.age += 1
-            adult_age = 24*300
 
             # Become adults
-            if not self.__outer._adult and self.__outer.age >= adult_age:
+            if not self.__outer._adult and self.__outer.age >= ADULT_AGE:
                 self.__outer._adult = True
                 self.__outer.can_reproduce = True
                 self.__outer.size = self.__outer._max_size
@@ -463,10 +465,10 @@ class Fox(organisms.Organism):
 
             # Lerp values depending on age
             if not self.__outer._adult:
-                self.__outer.size = helpers.Lerp(0, self.__outer._max_size, self.__outer.age / (adult_age))
+                self.__outer.size = helpers.Lerp(0, self.__outer._max_size, self.__outer.age / (ADULT_AGE))
                 for key in self.__outer._vision_range:
                     self.__outer._vision_range[key] = min(self.__outer._max_vision_range[key], helpers.Lerp(0, self.__outer._max_vision_range[key], self.__outer.age / (NEW_BORN_TIME)))
-                self.__outer._movement_cooldown = helpers.Lerp(2 * self.__outer._min_movement_cooldown, self.__outer._min_movement_cooldown, self.__outer.age / (adult_age))
+                self.__outer._movement_cooldown = helpers.Lerp(2 * self.__outer._min_movement_cooldown, self.__outer._min_movement_cooldown, self.__outer.age / (ADULT_AGE))
 
 
             self._status = bt.Status.SUCCESS
@@ -607,7 +609,7 @@ class Fox(organisms.Organism):
             path = []
             if mother is not None:
                 path = astar(self.__outer, ecosystem.water_map, ecosystem.plant_map, ecosystem.animal_map,
-                             x, y, mother.x, mother.y, max_path_length=10)
+                             x, y, mother.x, mother.y, max_path_length=PATH_LENGTH)
 
             if len(path) > 0:
                 path.pop(0)
@@ -835,7 +837,7 @@ class Fox(organisms.Organism):
             path = []
             if rabbit is not None:
                 path = astar(self.__outer, ecosystem.water_map, ecosystem.plant_map, ecosystem.animal_map,
-                             x, y, rabbit.x, rabbit.y, max_path_length=10)
+                             x, y, rabbit.x, rabbit.y, max_path_length=PATH_LENGTH)
 
             if len(path) > 0:
                 path.pop(0)
@@ -893,7 +895,7 @@ class Fox(organisms.Organism):
             path = []
             if smell_position is not None:
                 path = astar(self.__outer, ecosystem.water_map, ecosystem.plant_map, ecosystem.animal_map,
-                             x, y, smell_position[0], smell_position[1], max_path_length=10)
+                             x, y, smell_position[0], smell_position[1], max_path_length=PATH_LENGTH)
 
             if len(path) > 0:
                 path.pop(0)
@@ -1001,7 +1003,7 @@ class Fox(organisms.Organism):
 
 
             path = astar(self.__outer, ecosystem.water_map, ecosystem.plant_map, ecosystem.animal_map,
-                               x, y, best_water.x, best_water.y, max_path_length=10)
+                               x, y, best_water.x, best_water.y, max_path_length=PATH_LENGTH)
             if len(path) > 0:
                 path.pop(0)
                 self.__outer._movement_path = path
@@ -1097,7 +1099,7 @@ class Fox(organisms.Organism):
             path = []
             if den is not None:
                 path = astar(self.__outer, ecosystem.water_map, ecosystem.plant_map, ecosystem.animal_map,
-                             x, y, den.x, den.y, max_path_length=10)
+                             x, y, den.x, den.y, max_path_length=PATH_LENGTH)
 
             if len(path) > 0:
                 path.pop(0)
@@ -1168,7 +1170,7 @@ class Fox(organisms.Organism):
             self.__outer = outer
 
         def condition(self):
-            return self.__outer.reproduction_timer <= REPRODUCTION_COOLDOWN + 24*2 # Two days prior to giving birth
+            return self.__outer.reproduction_timer <= REPRODUCTION_COOLDOWN + 24*1
 
     class InDen(bt.Condition):
         """Determines if the fox is in its burrow."""
@@ -1308,7 +1310,7 @@ class Fox(organisms.Organism):
             partner = self.__outer.partner
 
             path = astar(self.__outer, ecosystem.water_map, ecosystem.plant_map, ecosystem.animal_map,
-                         x, y, partner.x, partner.y, max_path_length=10)
+                         x, y, partner.x, partner.y, max_path_length=PATH_LENGTH)
 
             if len(path) > 0:
                 path.pop(0)
@@ -1422,7 +1424,7 @@ class Fox(organisms.Organism):
                                         break
 
             path = astar(self.__outer, ecosystem.water_map, ecosystem.plant_map, ecosystem.animal_map,
-                         x, y, closest_rabbit.x, closest_rabbit.y, max_path_length=10)
+                         x, y, closest_rabbit.x, closest_rabbit.y, max_path_length=PATH_LENGTH)
 
             if len(path) > 0:
                 path.pop(0)
