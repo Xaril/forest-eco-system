@@ -901,8 +901,11 @@ class Rabbit(organisms.Organism):
                                 best_food = ecosystem.plant_map[x + dx][y + dy]
                                 best_distance = distance
 
-            path = astar(self.__outer, ecosystem.water_map, ecosystem.plant_map, ecosystem.animal_map,
-                               x, y, best_food.x, best_food.y, max_path_length=10)
+            path = []
+
+            if best_food is not None:
+                path = astar(self.__outer, ecosystem.water_map, ecosystem.plant_map, ecosystem.animal_map,
+                                   x, y, best_food.x, best_food.y, max_path_length=10)
             if len(path) > 0:
                 path.pop(0)
                 self.__outer._movement_path = path
