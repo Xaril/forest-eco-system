@@ -14,6 +14,7 @@ TIRED_SEEK_THRESHOLD = 50
 HUNGER_DAMAGE_THRESHOLD = 75
 THIRST_DAMAGE_THRESHOLD = 85
 TIRED_DAMAGE_THRESHOLD = 80
+SCARED_FACTOR = 1.2
 HUNGER_DAMAGE_FACTOR = 0.2
 THIRST_DAMAGE_FACTOR = 0.3
 TIRED_DAMAGE_FACTOR = 0.1
@@ -151,6 +152,12 @@ class Rabbit(organisms.Organism):
         # Avoiding enemies
         enemy_sequence = bt.Sequence()
         logic_fallback.add_child(enemy_sequence)
+
+        should_act_on_enemy_fallback = bt.FallBack()
+        enemy_sequence.add_child(should_act_on_enemy_fallback)
+        should_act_on_enemy_fallback.add_child(self.MoreScaredThanHungry(self))
+        should_act_on_enemy_fallback.add_child(self.MoreScaredThanThirsty(self))
+        should_act_on_enemy_fallback.add_child(self.MoreScaredThanTired(self))
         enemy_sequence.add_child(self.EnemyNearby(self))
         enemy_sequence.add_child(self.CanMove(self))
 
@@ -575,6 +582,33 @@ class Rabbit(organisms.Organism):
     ###########
     # ENEMIES #
     ###########
+
+    class MoreScaredThanHungry(bt.Condition):
+        """Check if the rabbit is hungrier than it is scared."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer._hunger < SCARED_FACTOR * HUNGER_DAMAGE_THRESHOLD
+
+    class MoreScaredThanThirsty(bt.Condition):
+        """Check if the rabbit is thirstier than it is scared."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer._thirst < SCARED_FACTOR * THIRST_DAMAGE_THRESHOLD
+
+    class MoreScaredThanTired(bt.Condition):
+        """Check if the rabbit is more tired than it is scared."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            return self.__outer._tired < SCARED_FACTOR * TIRED_DAMAGE_THRESHOLD
 
     class EnemyNearby(bt.Condition):
         """Check if there are foxes nearby."""
