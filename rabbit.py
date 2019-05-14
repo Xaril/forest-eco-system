@@ -166,6 +166,7 @@ class Rabbit(organisms.Organism):
 
         burrow_enemy_sequence = bt.Sequence()
         enemy_fallback.add_child(burrow_enemy_sequence)
+        burrow_enemy_sequence.add_child(self.BurrowAvailable(self))
         burrow_enemy_sequence.add_child(self.FindPathToBurrow(self))
         burrow_enemy_sequence.add_child(self.MoveOnPath(self))
 
@@ -640,6 +641,31 @@ class Rabbit(organisms.Organism):
 
         def condition(self):
             return self.__outer._movement_timer == 0
+
+    class BurrowAvailable(bt.Condition):
+        """Determines if the burrow is close enough to hide in."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def condition(self):
+            x = self.__outer.x
+            y = self.__outer.y
+            burrow = self.__outer.burrow
+            vision_range = self.__outer._vision_range
+            ecosystem = self.__outer._ecosystem
+
+            if burrow is not None:
+                burrow_distance = helpers.EuclidianDistance(x, y, burrow.x, burrow.y)
+                vision_distance = helpers.EuclidianDistance(0, 0, vision_range['left'], vision_range['up'])
+                vision_distance = max(vision_distance, helpers.EuclidianDistance(0, 0, vision_range['right'], vision_range['up']))
+                vision_distance = max(vision_distance, helpers.EuclidianDistance(0, 0, vision_range['right'], vision_range['down']))
+                vision_distance = max(vision_distance, helpers.EuclidianDistance(0, 0, vision_range['left'], vision_range['down']))
+
+                if burrow_distance <= vision_distance:
+                    return True
+
+            return False
 
     class RunAway(bt.Action):
         """Runs away from the closest threat."""
