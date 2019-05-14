@@ -25,9 +25,9 @@ SLEEP_TIME = 10
 HEAL_AMOUNT = 4
 
 REPRODUCTION_TIME = 24*10
-REPRODUCTION_COOLDOWN = 24*30
-NEW_BORN_TIME = 24*6
-NEW_BORN_FOLLOW_TIME = 24 * 15
+REPRODUCTION_COOLDOWN = 24*25
+NEW_BORN_TIME = 24*5
+NEW_BORN_FOLLOW_TIME = 24 * 10
 NURSE_COOLDOWN = 24
 ADULT_AGE = 24*30*2
 
@@ -101,7 +101,7 @@ class Fox(organisms.Organism):
             self._movement_cooldown = movement_cooldown / genetics_factor
             self._min_movement_cooldown = movement_cooldown / genetics_factor
         else:
-            self._movement_cooldown = 2 * movement_cooldown / genetics_factor
+            self._movement_cooldown = movement_cooldown / genetics_factor
             self._min_movement_cooldown = movement_cooldown / genetics_factor
 
         self._movement_timer = random.uniform(0, self._movement_cooldown)
@@ -321,7 +321,7 @@ class Fox(organisms.Organism):
 
         partner_nearby_sequence = bt.Sequence()
         partner_reproduction_fallback.add_child(partner_nearby_sequence)
-        partner_nearby_sequence.add_child(self.PartnerNearby(self))
+        #partner_nearby_sequence.add_child(self.PartnerNearby(self))
         partner_nearby_sequence.add_child(self.CanMove(self))
         partner_nearby_sequence.add_child(self.FindPathToPartner(self))
         partner_nearby_sequence.add_child(self.MoveOnPath(self))
@@ -471,7 +471,7 @@ class Fox(organisms.Organism):
                 self.__outer.size = helpers.Lerp(0, self.__outer._max_size, self.__outer.age / (ADULT_AGE))
                 for key in self.__outer._vision_range:
                     self.__outer._vision_range[key] = min(self.__outer._max_vision_range[key], helpers.Lerp(0, self.__outer._max_vision_range[key], self.__outer.age / (NEW_BORN_TIME)))
-                self.__outer._movement_cooldown = helpers.Lerp(2 * self.__outer._min_movement_cooldown, self.__outer._min_movement_cooldown, self.__outer.age / (ADULT_AGE))
+                #self.__outer._movement_cooldown = helpers.Lerp(2 * self.__outer._min_movement_cooldown, self.__outer._min_movement_cooldown, self.__outer.age / (ADULT_AGE))
 
 
             self._status = bt.Status.SUCCESS
