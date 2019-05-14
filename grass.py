@@ -8,15 +8,15 @@ import constants
 
 REPRODUCTION_THRESHOLD = 60
 MAX_GRASS_AMOUNT = 100
-MAX_GROWTH_SPEED = 0.3 # Based on that grass takes two weeks to grow
-MIN_GROWTH_SPEED = 0.2
+MAX_GROWTH_SPEED = 0.6 # Based on that grass takes two weeks to grow
+MIN_GROWTH_SPEED = 0.4
 MAX_DEGRADE_SPEED = -0.2
 PLANTED_SEED_AMOUNT = -80 # With growth speed of 0.3 this will make SEED-GRASS transition take approx 10 days
 REPRODUCTION_COOLDOWN = 24 # Reproduces only once a day
 GRASS_WATER_CAPACITY = 1000
-GRASS_WATER_USAGE = 0.1
+GRASS_WATER_USAGE = 0.05
 GRASS_OPTIMAL_WATER_PERCENTAGE = 0.5 # Water percentage for fastest growth speed
-GRASS_MAX_WATER_PERCENTAGE = 0.8 # Threshold when too much water starts to kill grass
+GRASS_MAX_WATER_PERCENTAGE = 0.9 # Threshold when too much water starts to kill grass
 
 class Grass(organisms.Organism):
     """Defines the grass."""

@@ -7,7 +7,7 @@ import numpy as np
 NUMBER_OF_RAINY_DAYS_IN_YEAR = 168
 
 class RainType(Enum):
-    LIGHT = {"probability": 0.75, "liter_per_hour": 0.1}
+    LIGHT = {"probability": 0.75, "liter_per_hour": 0.2}
     MEDIUM = {"probability": 0.2, "liter_per_hour": 0.5}
     HEAVY = {"probability": 0.05, "liter_per_hour": 1}
 
