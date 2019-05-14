@@ -49,7 +49,8 @@ def plot(steps):
         'rabbit': [],
         'bee': [],
         'fox': [],
-        'flower': []
+        'flower': [],
+        'grass': []
     }
 
     genetics_factors = {
@@ -67,6 +68,7 @@ def plot(steps):
         foxes = 0
         bees = 0
         flowers = 0
+        grass = 0
 
         rabbit_genetics_factor = 0
         fox_genetics_factor = 0
@@ -83,20 +85,26 @@ def plot(steps):
                 bees += 1
             elif organism.type == Type.FLOWER:
                 flowers += 1
+            elif organism.type == Type.GRASS:
+                grass += 1
 
         populations['rabbit'].append(rabbits)
         populations['fox'].append(foxes)
         populations['bee'].append(bees)
         populations['flower'].append(flowers)
+        populations['grass'].append(grass)
 
-        genetics_factors['rabbit'].append(rabbit_genetics_factor / rabbits)
-        genetics_factors['fox'].append(fox_genetics_factor / foxes)
+        if rabbits != 0:
+            genetics_factors['rabbit'].append(rabbit_genetics_factor / rabbits)
+        if foxes != 0:
+            genetics_factors['fox'].append(fox_genetics_factor / foxes)
 
     # Plot the results
     plt.plot(populations['rabbit'], label='Rabbits')
     plt.plot(populations['fox'], label='Foxes')
     plt.plot(populations['bee'], label='Bees')
     plt.plot(populations['flower'], label='Flowers')
+    plt.plot(populations['grass'], label='Grass')
     plt.xlabel('Time')
     plt.legend(loc='upper right')
     plt.ylabel('Population amount')
