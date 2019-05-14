@@ -47,7 +47,8 @@ class Rabbit(organisms.Organism):
                  thirst=0, tired=0, health=100, size=20, life_span=24*30*4,
                  hunger_speed=50/36, thirst_speed=50/72, tired_speed=50/36,
                  vision_range={'left': 4, 'right': 4, 'up': 4, 'down': 4},
-                 burrow=None, in_burrow=False, movement_cooldown=3, age=0):
+                 burrow=None, in_burrow=False, movement_cooldown=3, age=0,
+                 reproduction_timer=0):
         super().__init__(ecosystem, organisms.Type.RABBIT, x, y)
         self.female = female
         self._adult = adult
@@ -84,10 +85,10 @@ class Rabbit(organisms.Organism):
         # TODO:
         #     * Genetic variables
 
-        self.can_reproduce = self._adult
+        self.can_reproduce = self._adult and reproduction_timer == 0
         self.pregnant = False
         self.partner = None
-        self.reproduction_timer = 0
+        self.reproduction_timer = reproduction_timer
         self._stabilized_health = False
         self._nurse_timer = 0
         self._stop_nursing_timer = 0
@@ -128,6 +129,7 @@ class Rabbit(organisms.Organism):
         tree.add_child(self.HandleNursing(self))
         tree.add_child(self.IncreaseAge(self))
         tree.add_child(self.TakeDamage(self))
+        tree.add_child(self.HandlePartner(self))
         tree.add_child(self.ReplenishHealth(self))
 
         logic_fallback = bt.FallBack()
@@ -498,6 +500,19 @@ class Rabbit(organisms.Organism):
             tired = self.__outer._tired
             if tired >= TIRED_DAMAGE_THRESHOLD:
                 self.__outer.health -= (tired - TIRED_DAMAGE_THRESHOLD) * TIRED_DAMAGE_FACTOR
+
+    class HandlePartner(bt.Action):
+        """Remove partner if it has died."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            self._status = bt.Status.SUCCESS
+
+            if self.__outer.partner is not None:
+                if self.__outer.partner.health <= 0:
+                    self.__outer.partner = None
 
     class ReplenishHealth(bt.Action):
         """Replenish health if in a healthy condition."""

@@ -37,7 +37,7 @@ class Fox(organisms.Organism):
     """Defines the fox."""
     def __init__(self, ecosystem, x, y, female, adult=False, hunger=0,
                  thirst=0, tired=0, health=100, size=35, life_span=24*30*8,
-                 hunger_speed=50/36, thirst_speed=50/72, tired_speed=50/36,
+                 hunger_speed=50/72, thirst_speed=50/100, tired_speed=50/36,
                  vision_range={'left': 5, 'right': 5, 'up': 5, 'down': 5},
                  den=None, in_den=False, movement_cooldown=2, age=0, mother=None):
         super().__init__(ecosystem, organisms.Type.FOX, x, y)
@@ -125,6 +125,7 @@ class Fox(organisms.Organism):
         tree.add_child(self.HandleNursing(self))
         tree.add_child(self.IncreaseAge(self))
         tree.add_child(self.TakeDamage(self))
+        tree.add_child(self.HandlePartner(self))
         tree.add_child(self.ReplenishHealth(self))
         tree.add_child(self.HandleChildrenList(self))
 
@@ -497,6 +498,19 @@ class Fox(organisms.Organism):
             if tired >= TIRED_DAMAGE_THRESHOLD:
                 self.__outer._health -= (tired - TIRED_DAMAGE_THRESHOLD) * TIRED_DAMAGE_FACTOR
 
+    class HandlePartner(bt.Action):
+        """Remove partner if it has died."""
+        def __init__(self, outer):
+            super().__init__()
+            self.__outer = outer
+
+        def action(self):
+            self._status = bt.Status.SUCCESS
+
+            if self.__outer.partner is not None:
+                if self.__outer.partner._health <= 0:
+                    self.__outer.partner = None
+
     class ReplenishHealth(bt.Action):
         """Replenish health if in a healthy condition."""
         def __init__(self, outer):
@@ -779,6 +793,8 @@ class Fox(organisms.Organism):
 
             if best_rabbit is not None:
                 self.__outer._hunger -= 100 * FOX_SIZE_FACTOR * best_rabbit.size
+                for child in self.__outer.children:
+                    child._hunger -= 100 * FOX_SIZE_FACTOR * best_rabbit.size
                 self._status = bt.Status.SUCCESS
                 best_rabbit.health = 0
             else:

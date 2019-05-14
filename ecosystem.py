@@ -26,7 +26,7 @@ ANIMAL_CELL_CAPACITY = 100
 BURROW_PERCENTAGE = 0.02
 BURROW_RABBIT_MIN_AMOUNT = 3
 BURROW_RABBIT_MAX_AMOUNT = 5
-HIVES_PER_TREE = 0.04
+HIVES_PER_TREE = 0.07
 HIVE_BEE_MIN_AMOUNT = 5
 HIVE_BEE_MAX_AMOUNT = 9
 FOX_PERCENTAGE = 0.005
@@ -151,8 +151,9 @@ class Ecosystem():
                 if random.random() <= FLOWER_PERCENTAGE:
                     if self.plant_map[x][y] and self.plant_map[x][y].type == Type.TREE:
                         continue
-                    flower = Flower(self, x, y, random.randint(-50, 100), nectar=random.randint(0,100))
-                    self.flower_map[x][y].append(flower)
+                    for _ in range(random.randint(1, 4)):
+                        flower = Flower(self, x, y, random.randint(-50, 100), nectar=random.randint(0,100))
+                        self.flower_map[x][y].append(flower)
 
         # Animal map
         for x in range(self.width):
@@ -177,7 +178,8 @@ class Ecosystem():
                         rabbit = Rabbit(self, x + dx, y + dy,
                                         random.choice([True, False]),
                                         adult=True, burrow=burrow,
-                                        age=random.randint(24*30, 24*30*3))
+                                        age=random.randint(24*30, 24*30*3),
+                                        reproduction_timer=random.randint(0, 24*6))
                         self.animal_map[x + dx][y + dy].append(rabbit)
 
                 # Foxes
