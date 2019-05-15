@@ -741,7 +741,7 @@ class Fox(organisms.Organism):
             self.__outer = outer
 
         def condition(self):
-            return self.__outer._hunger >= -HUNGER_DAMAGE_THRESHOLD
+            return self.__outer._hunger >= 0
 
     class RabbitAdjacent(bt.Condition):
         """Check if there is a rabbit next to the fox."""
