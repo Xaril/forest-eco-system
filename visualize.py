@@ -61,6 +61,7 @@ def plot(steps):
     ecosystem = Ecosystem(int(SCREEN_WIDTH/CELL_WIDTH), int(SCREEN_HEIGHT/CELL_HEIGHT))
 
     # Iterate over time
+    actual_steps = steps
     for i in range(steps):
         ecosystem_organisms = ecosystem.run()
 
@@ -103,8 +104,16 @@ def plot(steps):
 
         if rabbits != 0:
             genetics_factors['rabbit'].append(rabbit_genetics_factor / rabbits)
+        else:
+            if i < 10000:
+                actual_steps = i
+            break
         if foxes != 0:
             genetics_factors['fox'].append(fox_genetics_factor / foxes)
+        else:
+            if i < 10000:
+                actual_steps = i
+            break
 
     # Plot the results
     plt.plot(populations['rabbit'], label='Rabbits')
@@ -123,6 +132,11 @@ def plot(steps):
     plt.legend(loc='upper right')
     plt.ylabel('Genetics factor')
     plt.show()
+
+    if actual_steps >= 10000:
+        return True
+    else:
+        return False
 
 
 def main():
@@ -146,7 +160,10 @@ def main():
     args = parser.parse_args()
 
     if args.plot:
-        plot(args.steps)
+        while not plot(args.steps):
+            print('#########################################')
+            print('# DID NOT GET PAST 10000, TRYING AGAIN! #')
+            print('#########################################')
     else:
         game = Game(SCREEN_WIDTH, SCREEN_HEIGHT)
         game.setup()

@@ -4,8 +4,8 @@ import constants
 from helpers import Lerp, InverseLerp, Direction
 
 REPRODUCTION_THRESHOLD = 60 # Amout of flower needed to be able to reproduce
-MAX_GROWTH_SPEED = 1 # Based on that FLOWER takes around five weeks to grow
-MIN_GROWTH_SPEED = 0.8
+MAX_GROWTH_SPEED = 0.5 # Based on that FLOWER takes around five weeks to grow
+MIN_GROWTH_SPEED = 0.4
 PLANTED_SEED_AMOUNT = -50 # With growth speed of 0.1 this will make SEED-FLOWER transition take approx 3 weeks
 MAX_FLOWER_AMOUNT = 100
 FLOWER_WATER_USAGE = 0.2
