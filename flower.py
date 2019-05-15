@@ -4,8 +4,8 @@ import constants
 from helpers import Lerp, InverseLerp, Direction
 
 REPRODUCTION_THRESHOLD = 60 # Amout of flower needed to be able to reproduce
-MAX_GROWTH_SPEED = 0.30 # Based on that FLOWER takes around five weeks to grow
-MIN_GROWTH_SPEED = 0.20
+MAX_GROWTH_SPEED = 1 # Based on that FLOWER takes around five weeks to grow
+MIN_GROWTH_SPEED = 0.8
 PLANTED_SEED_AMOUNT = -50 # With growth speed of 0.1 this will make SEED-FLOWER transition take approx 3 weeks
 MAX_FLOWER_AMOUNT = 100
 FLOWER_WATER_USAGE = 0.2
@@ -24,7 +24,7 @@ POLLEN_PRODUCTION_SPEED = 2
 
 class Flower(organisms.Organism):
     """Defines the flower."""
-    def __init__(self, ecosystem, x, y, amount, seed=False, nectar=0):
+    def __init__(self, ecosystem, x, y, amount, seed=False, nectar=0, has_seed=False):
         super().__init__(ecosystem, organisms.Type.FLOWER, x, y)
         if seed:
             self.seed = seed
@@ -32,7 +32,7 @@ class Flower(organisms.Organism):
             self.seed = amount <= 0
         self._amount = amount
         self.nectar = nectar
-        self.has_seed = False
+        self.has_seed = has_seed
 
         if not self.seed:
             self.pollen = self._amount * MAX_POLLEN_AMOUNT_MULTIPLIER

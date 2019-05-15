@@ -152,7 +152,8 @@ class Ecosystem():
                     if self.plant_map[x][y] and self.plant_map[x][y].type == Type.TREE:
                         continue
                     for _ in range(random.randint(1, 4)):
-                        flower = Flower(self, x, y, random.randint(-50, 100), nectar=random.randint(0,100))
+                        flower = Flower(self, x, y, random.randint(-50, 100), nectar=random.randint(0,100),
+                                        has_seed=random.choice([True, False]))
                         self.flower_map[x][y].append(flower)
 
         # Animal map
