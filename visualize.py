@@ -105,38 +105,35 @@ def plot(steps):
         if rabbits != 0:
             genetics_factors['rabbit'].append(rabbit_genetics_factor / rabbits)
         else:
-            if i < 10000:
-                actual_steps = i
+            actual_steps = i
             break
         if foxes != 0:
             genetics_factors['fox'].append(fox_genetics_factor / foxes)
         else:
-            if i < 10000:
-                actual_steps = i
+            actual_steps = i
             break
 
-    # Plot the results
-    plt.plot(populations['rabbit'], label='Rabbits')
-    plt.plot(populations['fox'], label='Foxes')
-    plt.plot(populations['bee'], label='Bees')
-    plt.plot(populations['flower'], label='Flowers')
-    plt.plot(populations['grass'], label='Grass')
-    plt.xlabel('Time')
-    plt.legend(loc='upper right')
-    plt.ylabel('Population amount')
-    plt.show()
+    if actual_steps >= 25000:
+        # Plot the results
+        plt.plot(populations['rabbit'], label='Rabbits')
+        plt.plot(populations['fox'], label='Foxes')
+        plt.plot(populations['bee'], label='Bees')
+        plt.plot(populations['flower'], label='Flowers')
+        plt.plot(populations['grass'], label='Grass')
+        plt.xlabel('Time')
+        plt.legend(loc='upper right')
+        plt.ylabel('Population amount')
+        plt.show()
 
-    plt.plot(genetics_factors['rabbit'], label='Rabbits')
-    plt.plot(genetics_factors['fox'], label='Foxes')
-    plt.xlabel('Time')
-    plt.legend(loc='upper right')
-    plt.ylabel('Genetics factor')
-    plt.show()
-
-    if actual_steps >= 10000:
-        return True
+        plt.plot(genetics_factors['rabbit'], label='Rabbits')
+        plt.plot(genetics_factors['fox'], label='Foxes')
+        plt.xlabel('Time')
+        plt.legend(loc='upper right')
+        plt.ylabel('Genetics factor')
+        plt.show()
+        return True, actual_steps
     else:
-        return False
+        return False, actual_steps
 
 
 def main():
@@ -160,10 +157,18 @@ def main():
     args = parser.parse_args()
 
     if args.plot:
-        while not plot(args.steps):
+        iterations = 0
+        plots = 0
+        done = False
+        while not done:
             print('#########################################')
-            print('# DID NOT GET PAST 10000, TRYING AGAIN! #')
+            print('# DID NOT GET PAST 25000, TRYING AGAIN! #')
             print('#########################################')
+            done, iteration = plot(args.steps)
+            iterations += iteration
+            plots += 1
+            print('Average amount of iterations: ' + str(iterations/plots))
+            print()
     else:
         game = Game(SCREEN_WIDTH, SCREEN_HEIGHT)
         game.setup()
