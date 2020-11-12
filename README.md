@@ -1,6 +1,6 @@
 # Forest eco system
 
-![Example image](images/image.png)
+![Example image](images/plots/image.png)
 
 Simulation of a forest eco system with water cycle, grass, flowers, bees, foxes and rabbits.
 
